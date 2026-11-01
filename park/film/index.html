@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Мультфильм «Байт-парк»: компьютер как ночной парк аттракционов.">
+<title>Байт-парк · мультфильм</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lobster&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: comic-strip player (stage + speech bubble) beside a study column; stacks on phones */
+:root{
+  --paper:#0E1330; --card:#1A2149; --ink:#F6F1E3; --muted:#B9BBDA; --line:#2E3870;
+  --wall:#141A3F; --wall2:#1C2452;
+  --stroke:#0A0D24; --eye:#1D2939; --hat:#FFFFFF;
+  --yel:#FFD24A; --yel2:#F2A922; --grn:#3FBF8A; --mint:#8BE3C2; --gold:#F5C542; --chip:#2A2F38;
+  --blue:#5B8CFF; --blue2:#B9C9FF; --coral:#FF6F91; --red:#FF5A6E; --wood:#C98B50; --wood2:#A86F3C;
+  --gray:#8D99B8; --scr:#2A3466; --night:#04061A; --hill:#1A3A48; --plaza:#2A2F66;
+  --ok:#6EE7B0; --okbg:#163A2E; --bad:#FF8FA0; --badbg:#3D1A28;
+  --f-disp:"Lobster","Nunito",cursive,sans-serif;
+  --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",monospace;
+  color-scheme:dark;
+}
+/* single night look: one deliberate theme for both host settings */
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+[hidden]{display:none!important}
+.wrap{max-width:1160px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--f-disp);text-wrap:balance;margin:0;line-height:1.2}
+.top{display:grid;grid-template-columns:1fr auto;gap:8px 24px;align-items:end}
+.eyebrow{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:800}
+h1{font-size:clamp(28px,5vw,44px);font-weight:700}
+.lede{margin:0;color:var(--muted);max-width:60ch;grid-column:1}
+.progress{grid-column:2;grid-row:1/4;min-width:180px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);font-weight:700}
+.progress .bar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;border:1.5px solid var(--stroke)}
+.progress .bar i{display:block;height:100%;background:var(--grn);width:0;transition:width .5s}
+@media (max-width:640px){.top{grid-template-columns:1fr}.progress{grid-column:1;grid-row:auto}}
+
+.eps{display:flex;gap:8px;overflow-x:auto;padding:4px 4px 10px;scrollbar-width:thin}
+.chip{flex:0 0 auto;display:flex;align-items:center;gap:8px;border:2px solid var(--stroke);background:var(--card);color:var(--ink);
+  border-radius:999px;padding:6px 14px 6px 6px;font:700 14px/1.2 var(--f-body);cursor:pointer;box-shadow:2px 2px 0 var(--stroke);transition:transform .15s}
+.chip:hover{transform:translateY(-1px)}
+.chip .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--wall2);font-family:var(--f-mono);font-size:13px}
+.chip.cur{background:var(--yel);color:#1D2939}
+.chip.cur .n{background:#fff}
+.chip.done .n{background:var(--grn);color:#fff}
+.chip.done .n::after{content:"✓"}
+.chip.done .n span{display:none}
+.chip:focus-visible,button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.player{display:flex;flex-direction:column;gap:14px;min-width:0}
+@media (min-width:901px){.player{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}}
+.ephead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.epnum{font-family:var(--f-mono);font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+h2{font-size:clamp(20px,3vw,26px)}
+.stage{border:3px solid var(--stroke);border-radius:18px;box-shadow:5px 5px 0 var(--stroke);overflow:hidden;
+  background-color:var(--wall);background-image:linear-gradient(var(--wall2) 1px,transparent 1px),linear-gradient(90deg,var(--wall2) 1px,transparent 1px);background-size:22px 22px}
+.stage svg{display:block;width:100%;height:auto}
+.sub{position:relative;background:var(--card);border:2.5px solid var(--stroke);border-radius:16px;padding:14px 18px;min-height:96px;box-shadow:3px 3px 0 var(--stroke)}
+.sub::before{content:"";position:absolute;left:34px;top:-12px;width:18px;height:18px;background:var(--card);border-left:2.5px solid var(--stroke);border-top:2.5px solid var(--stroke);transform:rotate(45deg)}
+.sub p{margin:0;font-size:17px;font-weight:600;max-width:65ch}
+.sub b{font-weight:800;color:var(--grn)}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{border:2px solid var(--stroke);background:var(--card);color:var(--ink);border-radius:12px;padding:9px 16px;font:800 15px/1 var(--f-body);cursor:pointer;box-shadow:2px 2px 0 var(--stroke)}
+.btn:active{transform:translate(2px,2px);box-shadow:none}
+.btn:disabled{opacity:.4;cursor:default;box-shadow:none}
+.btn.primary{background:var(--grn);color:#fff}
+.btn.on{background:var(--yel);color:#1D2939}
+.dots{display:flex;gap:6px;flex:1;justify-content:center;min-width:60px}
+.dots i{width:10px;height:10px;border-radius:50%;border:2px solid var(--stroke);background:transparent}
+.dots i.cur{background:var(--yel)}
+.dots i.seen{background:var(--stroke)}
+
+.learn{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:18px 20px}
+.card h3{font-size:18px;margin-bottom:10px}
+.remember{border:2px dashed var(--grn)}
+.remember ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.remember li{font-weight:700}
+.deep p,.deep li{color:var(--ink);font-size:15px}
+.deep p{margin:0 0 10px}
+.deep ul{margin:0 0 10px;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.deep code,.mono{font-family:var(--f-mono);font-size:.9em;background:var(--wall);padding:1px 5px;border-radius:5px}
+.tbl{overflow-x:auto;margin:6px 0 10px}
+.tbl table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tbl td:nth-child(n+2){font-family:var(--f-mono);font-size:13px}
+.q{display:flex;flex-direction:column;gap:8px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.q:last-of-type{border-bottom:0;margin-bottom:6px}
+.q p{margin:0;font-weight:800}
+.opt{text-align:left;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);border-radius:10px;padding:9px 12px;font:600 15px/1.35 var(--f-body);cursor:pointer}
+.opt:hover:not(:disabled){border-color:var(--stroke)}
+.opt:disabled{cursor:default}
+.opt.right{background:var(--okbg);border-color:var(--ok);color:var(--ink)}
+.opt.wrong{background:var(--badbg);border-color:var(--bad)}
+.why{font-size:14px;margin:0;color:var(--muted)}
+.why b{color:var(--ok)}
+.why.no b{color:var(--bad)}
+.qfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-weight:700;font-size:14px;color:var(--muted)}
+.link{background:none;border:0;color:var(--muted);text-decoration:underline;font:600 13px var(--f-body);cursor:pointer;padding:0}
+.nextep{align-self:flex-start}
+
+/* SVG cartoon */
+.o{stroke:var(--stroke);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.o1{stroke:var(--stroke);stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round}
+.nf{fill:none}
+.f-yel{fill:var(--yel)}.f-yel2{fill:var(--yel2)}.f-grn{fill:var(--grn)}.f-mint{fill:var(--mint)}.f-gold{fill:var(--gold)}
+.f-chip{fill:var(--chip)}.f-hat{fill:var(--hat)}.f-eye{fill:var(--eye)}.f-coral{fill:var(--coral)}.f-blue{fill:var(--blue)}
+.f-blue2{fill:var(--blue2)}.f-wood{fill:var(--wood)}.f-wood2{fill:var(--wood2)}.f-gray{fill:var(--gray)}.f-card{fill:var(--card)}
+.f-line{fill:var(--line)}.f-red{fill:var(--red)}.f-paper{fill:var(--paper)}.f-scr{fill:var(--scr)}.f-night{fill:var(--night)}.f-wall{fill:var(--wall)}
+.t{font-family:var(--f-body);font-weight:800;fill:var(--ink);font-size:10px;text-anchor:middle}
+.tm{font-family:var(--f-mono);font-weight:700}
+.td{font-family:var(--f-disp);font-weight:700}
+.tl{text-anchor:start}.te{text-anchor:end}
+.tw{fill:#fff}.tk{fill:var(--eye)}.tr{fill:var(--red)}
+.tchip{font-family:var(--f-mono);font-size:8px;font-weight:700;fill:var(--eye);text-anchor:middle}
+.lab{paint-order:stroke;stroke:var(--wall);stroke-width:3.5px;stroke-linejoin:round}
+.trace{fill:none;stroke:var(--gold);stroke-width:1.6;opacity:.85}
+.wire{fill:none;stroke:var(--coral);stroke-width:2.5;stroke-linecap:round}
+.air{fill:none;stroke:var(--blue);stroke-width:2;stroke-linecap:round}
+.road{fill:none;stroke:var(--gray);stroke-width:9;stroke-linecap:round;opacity:.55}
+.heat{fill:none;stroke:var(--coral);stroke-width:2.5;stroke-linecap:round}
+.hl{fill:none;stroke:var(--coral);stroke-width:3}
+.hlline{fill:none;stroke:var(--coral);stroke-width:2;stroke-dasharray:3 3}
+.px{fill:var(--scr)}
+
+.actor{transition:opacity .35s}
+.dim .actor:not(.on){opacity:.2}
+.actor.on{transform-box:fill-box;transform-origin:50% 100%;animation:pop .7s ease-out}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+.spin{transform-box:fill-box;transform-origin:center;animation:spin 1.1s linear infinite}
+.slow{animation-duration:3s}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hand{transform-box:fill-box;transform-origin:50% 100%;animation:spin 2s linear infinite}
+.fast .hand{animation-duration:.25s}
+.blink{transform-box:fill-box;transform-origin:center;animation:blink 4.5s infinite}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.armL,.armR{transform-box:fill-box;animation:stir 1.1s ease-in-out infinite alternate}
+.armL{transform-origin:100% 0}.armR{transform-origin:0 0}
+@keyframes stir{from{transform:rotate(-10deg)}to{transform:rotate(12deg)}}
+.fast .armL,.fast .armR{animation-duration:.13s}
+.mv{animation:mv var(--t,2.6s) ease-in-out infinite}
+@keyframes mv{0%,10%{transform:translate(0,0);opacity:1}60%,88%{transform:translate(var(--dx,0px),var(--dy,0px));opacity:1}100%{transform:translate(var(--dx,0px),var(--dy,0px));opacity:0}}
+.rise{animation:rise 2.4s ease-out infinite}
+@keyframes rise{0%{transform:translateY(0);opacity:0}15%{opacity:1}75%{opacity:1}100%{transform:translateY(-40px);opacity:0}}
+.pulse{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+.bob{animation:bob 1s ease-in-out infinite alternate}
+@keyframes bob{to{transform:translateY(-5px)}}
+.swap #cpu{animation:run 2.8s ease-in-out infinite;--dx:-150px}
+@keyframes run{0%,100%{transform:translateX(0)}40%,60%{transform:translateX(var(--dx))}}
+.off .dc{transform-box:fill-box;transform-origin:center;animation:fall 1.1s .5s ease-in forwards}
+@keyframes fall{to{transform:translateY(46px) rotate(30deg);opacity:0}}
+.shade{animation:shade .8s forwards}
+@keyframes shade{from{opacity:0}to{opacity:.6}}
+.grow{transform-box:fill-box;transform-origin:0 50%;animation:grow 1.4s ease-out both}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.flow{stroke-dasharray:6 6;animation:dash .7s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-24}}
+.seek{transform-box:fill-box;transform-origin:100% 100%;animation:seek .45s ease-in-out infinite alternate}
+@keyframes seek{from{transform:rotate(-9deg)}to{transform:rotate(11deg)}}
+.press{animation:press 1.4s ease-in-out infinite}
+@keyframes press{0%,30%,100%{transform:translateY(0)}45%,60%{transform:translateY(4px)}}
+.pxw{animation:pxw 2.4s ease-in-out infinite}
+@keyframes pxw{0%,100%{fill:var(--scr)}45%{fill:var(--blue)}60%{fill:var(--coral)}}
+.tok{fill:var(--ok)}
+.appear{animation:appear .5s both}
+@keyframes appear{from{opacity:0}to{opacity:1}}
+.needle{transform-box:fill-box;transform-origin:50% 100%;transform:rotate(-55deg);transition:transform .9s cubic-bezier(.3,1.4,.5,1)}
+.oc .needle{transform:rotate(28deg)}.volt .needle{transform:rotate(52deg)}.xmp .needle{transform:rotate(-50deg)}
+.crash .needle{animation:wob .25s ease-in-out infinite alternate}
+@keyframes wob{from{transform:rotate(68deg)}to{transform:rotate(86deg)}}
+.therm{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(.35);transition:transform .9s}
+.oc .therm{transform:scaleY(.6)}.volt .therm{transform:scaleY(.85)}.crash .therm{transform:scaleY(1)}.xmp .therm{transform:scaleY(.37)}
+.more{display:flex;flex-direction:column;gap:12px;padding-top:8px;border-top:1.5px solid var(--line)}
+.more h3{font-size:18px}
+.morelist{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}
+.morecard{display:flex;flex-direction:column;gap:4px;padding:16px 18px;border:2px solid var(--stroke);border-radius:14px;background:var(--card);color:var(--ink);text-decoration:none;box-shadow:3px 3px 0 var(--stroke);transition:transform .15s}
+a.morecard:hover{transform:translateY(-2px)}
+.morecard b{font-family:var(--f-disp);font-size:17px}
+.morecard span{color:var(--muted);font-size:14px}
+.morecard em{font-style:normal;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--grn)}
+.morecard.here{box-shadow:none;border-style:dashed}
+h1,h2,h3{font-weight:400}
+h1{font-size:clamp(34px,6vw,54px);color:var(--gold);text-shadow:0 0 18px rgba(245,197,66,.45)}
+.stage{border-color:var(--gold);box-shadow:0 0 26px rgba(245,197,66,.3),5px 5px 0 #000;background-image:none;background-color:#121848}
+.sub,.sub::before{border-color:var(--gold)}
+.sub{box-shadow:3px 3px 0 #000}
+.sub b{color:var(--gold)}
+.chip,.btn,.morecard{box-shadow:2px 2px 0 #000;border-color:var(--gold)}
+.remember{border-color:var(--gold)}
+.f-hill{fill:var(--hill)}.f-plaza{fill:var(--plaza)}
+.tf{font-family:var(--f-disp);font-weight:400}
+.td{font-weight:700}
+.star{fill:#fff;animation:twk 2.4s ease-in-out infinite}
+.twk{animation:twk 1.6s ease-in-out infinite}
+@keyframes twk{0%,100%{opacity:1}50%{opacity:.25}}
+.burst{transform-box:view-box;animation:burst 2.6s ease-out infinite}
+@keyframes burst{0%{transform:scale(.1);opacity:0}20%{opacity:1}70%{transform:scale(1);opacity:.9}100%{transform:scale(1.12);opacity:0}}
+.bal{animation:bob 1.4s ease-in-out infinite alternate}
+.flag{transform-box:fill-box;transform-origin:0 50%;animation:flag .8s ease-in-out infinite alternate}
+@keyframes flag{from{transform:scaleX(.7) skewY(6deg)}to{transform:scaleX(1) skewY(-6deg)}}
+.smoke{fill:#C9CCE0;opacity:.7;animation:rise 2s ease-out infinite}
+.spark{stroke:var(--yel);stroke-width:2.5;stroke-linecap:round;animation:rise 1.6s ease-out infinite}
+.pix{animation:pix 2.8s ease-in-out infinite}
+@keyframes pix{0%,8%{opacity:0;transform:scale(.4)}25%,80%{opacity:1;transform:none}100%{opacity:0}}
+.pix{transform-box:fill-box;transform-origin:center}
+.win{animation:twk 3s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){svg *{animation:none!important}.actor{transition:none}}
+
+html,body{height:100%}
+body{padding-block:12px}
+.film{min-height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:14px;cursor:default}
+.screen{width:100%;max-width:980px;display:flex;flex-direction:column;gap:14px}
+.cap{min-height:5.2em;display:flex;align-items:flex-start;justify-content:center}
+.cap p{margin:0;text-align:center;font-size:clamp(17px,2.3vw,23px);font-weight:600;line-height:1.45;max-width:46ch;transition:opacity .35s}
+.cap p.fade{opacity:0}
+.cap b{color:var(--gold);font-weight:800}
+.prog{height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--gold);transition:width .6s}
+.hint{margin:0;font-size:13px;color:var(--muted);text-align:center}
+
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+</style>
+</head>
+<body>
+<div class="film" id="film">
+  <div class="screen">
+    <div class="stage" id="stage" aria-label="Мультфильм «Байт-парк»"></div>
+    <div class="cap" aria-live="polite"><p id="subtext"></p></div>
+    <div class="prog"><i id="pbar"></i></div>
+  </div>
+  <p class="hint" id="hint">Коснись экрана в любом месте — мультик заговорит</p>
+</div>
+<script>
+
+/* ---------- drawing helpers ---------- */
+const W=(inner,a='')=>`<g ${a}>${inner}</g>`;
+const T=(x,y,s,c='',st='')=>`<text x="${x}" y="${y}" class="t ${c}"${st?` style="${st}"`:''}>${s}</text>`;
+const face=(cx,cy)=>`<g class="blink"><circle cx="${cx-8}" cy="${cy}" r="3" class="f-eye"/><circle cx="${cx+8}" cy="${cy}" r="3" class="f-eye"/></g><path d="M${cx-6} ${cy+7}q6 5 12 0" class="o nf"/><circle cx="${cx-14}" cy="${cy+6}" r="3" class="f-coral" opacity=".45"/><circle cx="${cx+14}" cy="${cy+6}" r="3" class="f-coral" opacity=".45"/>`;
+function chef(x,y,s=1,a=''){
+  let pins='';for(let i=0;i<4;i++){const p=8+i*11;pins+=`<path d="M-6 ${p}h6M50 ${p}h6" class="o"/>`}
+  return W(`<g transform="translate(${x} ${y}) scale(${s})">
+  <path d="M17 50v22M33 50v22M11 72h8M31 72h8" class="o nf"/>
+  <g class="armL"><path d="M2 26q-14 6-14 20" class="o nf"/><circle cx="-12" cy="48" r="4.5" class="f-hat o"/></g>
+  <g class="armR"><path d="M48 26q14 6 14 20" class="o nf"/><circle cx="62" cy="48" r="4.5" class="f-hat o"/></g>
+  ${pins}<rect width="50" height="50" rx="8" class="f-yel o"/>
+  <rect x="10" y="33" width="30" height="11" rx="2" class="f-yel2"/><text x="25" y="41.5" class="tchip">CPU</text>
+  ${face(25,18)}
+  <circle cx="13" cy="-9" r="8" class="f-hat o"/><circle cx="37" cy="-9" r="8" class="f-hat o"/><circle cx="25" cy="-14" r="10" class="f-hat o"/><rect x="8" y="-7" width="34" height="8" rx="2" class="f-hat o"/>
+  </g>`,a);
+}
+function desk(x,y,w,a='',lab=''){
+  let c='',k='';const n=Math.floor((w-6)/24);
+  for(let i=0;i<n;i++)c+=`<rect x="${6+i*24}" y="4" width="16" height="10" rx="1.5" class="f-chip"/>`;
+  for(let i=5;i<w-5;i+=5)k+=`<rect x="${i}" y="17" width="3" height="5" class="f-gold"/>`;
+  return W(`<g transform="translate(${x} ${y})"><path d="M8 20v30M${w-8} 20v30M4 50h8M${w-12} 50h8" class="o nf"/>${k}<rect width="${w}" height="18" rx="3" class="f-grn o"/>${c}${lab?T(w/2,34,lab,'lab'):''}</g>`,a);
+}
+const crateIn=(x,y,c)=>`<g transform="translate(${x} ${y})"><rect width="18" height="14" rx="2" class="${c} o"/><path d="M0 5h18M9 5v9" class="o1 nf"/></g>`;
+const crate=(x,y,c='f-coral',a='')=>W(crateIn(x,y,c),a);
+function cupboard(x,y,s=1,a='',lab=''){
+  return W(`<g transform="translate(${x} ${y}) scale(${s})"><rect width="70" height="100" rx="4" class="f-wood o"/><rect x="6" y="6" width="58" height="88" rx="2" class="f-wood2"/><path d="M6 36h58M6 66h58" class="o nf"/>
+  ${crateIn(10,22,'f-coral')}${crateIn(34,22,'f-blue')}${crateIn(12,52,'f-mint')}${crateIn(38,52,'f-yel')}${crateIn(16,80,'f-blue')}${crateIn(40,80,'f-coral')}
+  ${lab?T(35,-7,lab,'lab'):''}</g>`,a);
+}
+const fanIn=(cx,cy,r,cls='spin')=>`<g transform="translate(${cx} ${cy})"><circle r="${r}" class="f-card o"/><g class="${cls}">${[0,90,180,270].map(d=>`<ellipse cx="${(r*.45).toFixed(1)}" rx="${(r*.42).toFixed(1)}" ry="${(r*.17).toFixed(1)}" transform="rotate(${d})" class="f-blue2"/>`).join('')}</g><circle r="${(r*.22).toFixed(1)}" class="f-eye"/></g>`;
+function gpu(x,y,s=1,a='',lab=''){
+  return W(`<g transform="translate(${x} ${y}) scale(${s})">
+  <path d="M20 38v18M46 38v18M14 56h10M40 56h10" class="o nf"/>
+  <g class="armR"><path d="M64 18q8-2 9-10" class="o nf"/><circle cx="73" cy="6" r="3.5" class="f-coral o"/></g>
+  <rect x="-4" y="3" width="5" height="32" class="f-gray o1"/>
+  <rect width="66" height="38" rx="5" class="f-blue o"/>${fanIn(20,19,13)}
+  <g class="blink"><circle cx="41" cy="14" r="2.4" class="f-eye"/><circle cx="53" cy="14" r="2.4" class="f-eye"/></g><path d="M42 21q5 4 10 0" class="o nf"/>
+  <ellipse cx="47" cy="-2" rx="14" ry="5" class="f-coral o"/><circle cx="47" cy="-8" r="2.5" class="f-coral o"/>
+  <text x="49" y="33" class="tchip">GPU</text>${lab?T(33,-16,lab,'lab'):''}</g>`,a);
+}
+const psuIn=(x,y)=>`<g transform="translate(${x} ${y})"><rect width="52" height="34" rx="4" class="f-gray o"/><path d="M29 5l-10 13h8l-4 12 12-15h-8l5-10z" class="f-yel o1"/></g>`;
+const dot=(p,d,b='0s')=>`<circle r="2.6" class="f-gold"><animateMotion dur="${d}" begin="${b}" repeatCount="indefinite" path="${p}"/></circle>`;
+const floor=(a='id="mobo" class="actor"')=>W(`<rect x="-2" y="196" width="364" height="26" class="f-grn"/><path d="M118 203h80l6 6h158" class="trace"/><path d="M128 216h60l5-5h50M250 216h112" class="trace"/>${dot('M118 203h80l6 6h158','3.2s')}${dot('M128 216h60l5-5h50','2.2s','.8s')}${T(60,212,'Материнская плата','tw','font-size:9px')}`,a);
+const clock=(cx,cy,r)=>`<circle cx="${cx}" cy="${cy}" r="${r}" class="f-hat o"/><g class="hand"><path d="M${cx} ${cy}V${cy-r+5}" class="o"/></g><circle cx="${cx}" cy="${cy}" r="2.5" class="f-eye"/>`;
+function boss(x,y,s=1,a=''){return W(`<g transform="translate(${x} ${y}) scale(${s})"><path d="M13 40v20M27 40v20M8 60h8M24 60h8" class="o nf"/><g class="armL"><path d="M2 20q-10 4-10 16" class="o nf"/><circle cx="-8" cy="37" r="4" class="f-hat o"/></g><rect width="40" height="40" rx="6" class="f-mint o"/><circle cx="13" cy="15" r="5.5" class="f-hat o1"/><circle cx="27" cy="15" r="5.5" class="f-hat o1"/><path d="M18.5 15h3" class="o1"/><g class="blink"><circle cx="13" cy="15" r="2" class="f-eye"/><circle cx="27" cy="15" r="2" class="f-eye"/></g><path d="M15 25q5 4 10 0" class="o nf"/><text x="20" y="37" class="tchip">UEFI</text><rect x="38" y="12" width="22" height="28" rx="2" class="f-hat o"/><rect x="44" y="9" width="10" height="5" rx="1" class="f-gray o1"/><path d="M42 21h14M42 27h14M42 33h10" class="o1"/></g>`,a)}
+const arc=(cx,cy,r,a0,a1)=>{const p=a=>[cx+r*Math.sin(a*Math.PI/180),cy-r*Math.cos(a*Math.PI/180)].map(v=>v.toFixed(1)).join(' ');return `M${p(a0)}A${r} ${r} 0 0 1 ${p(a1)}`};
+const svgWrap=s=>`<svg viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Кадр мультика">${s}</svg>`;
+const B=s=>`<b>${s}</b>`;
+
+/* ---------- episodes ---------- */
+const sky=()=>{let st='';for(let i=0;i<28;i++){const x=(i*73+17)%352+4,y=(i*41+9)%110+6,r=i%5===0?1.8:1.1;st+=`<circle cx="${x}" cy="${y}" r="${r}" class="star" style="animation-delay:${(i%7)*.4}s"/>`}
+ return `<defs><linearGradient id="skyg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#121848"/><stop offset="1" stop-color="#3B2A70"/></linearGradient></defs><rect x="-2" y="-2" width="364" height="224" fill="url(#skyg)"/>${st}<path d="M0 190Q90 176 180 188T360 186V222H0Z" class="f-hill"/>`};
+function byteG(x,y,s=1,a='',bits='01001011',ball=true){
+ let b='';[...bits].forEach((v,i)=>{b+=`<circle cx="${8+(i%4)*8}" cy="${30+Math.floor(i/4)*8}" r="2.6" class="${v==='1'?'f-yel bitlit':'f-line'}"/>`});
+ return W(`<g transform="translate(${x} ${y}) scale(${s})"><path d="M14 44v12M26 44v12M9 56h8M23 56h8" class="o nf"/>${ball?`<g class="bal"><path d="M38 20Q46 0 44-24" class="o1 nf"/><ellipse cx="44" cy="-35" rx="10" ry="12" class="f-coral o"/><path d="M42-24l2 3 2-3z" class="f-coral"/></g>`:''}<rect width="40" height="44" rx="10" class="f-mint o"/><g class="blink"><circle cx="13" cy="13" r="2.6" class="f-eye"/><circle cx="27" cy="13" r="2.6" class="f-eye"/></g><path d="M15 19q5 4 10 0" class="o1 nf"/>${b}</g>`,a);
+}
+const burst=(cx,cy,r,c,d)=>{let l='';for(let i=0;i<12;i++){const a=i*Math.PI/6;l+=`<path d="M${(cx+Math.cos(a)*r*.35).toFixed(1)} ${(cy+Math.sin(a)*r*.35).toFixed(1)}L${(cx+Math.cos(a)*r).toFixed(1)} ${(cy+Math.sin(a)*r).toFixed(1)}" style="stroke:var(${c});stroke-width:2.4;stroke-linecap:round"/>`}return `<g class="burst" style="transform-origin:${cx}px ${cy}px;animation-delay:${d}s">${l}<circle cx="${cx}" cy="${cy}" r="2.5" style="fill:var(${c})"/></g>`};
+const lights=(x1,y1,x2,y2,sag,n)=>{const mx=(x1+x2)/2,my=Math.max(y1,y2)+sag;let s=`<path d="M${x1} ${y1}Q${mx} ${my+sag} ${x2} ${y2}" class="o1 nf" style="stroke:var(--muted)"/>`;const cols=['f-yel','f-coral','f-mint','f-blue2'];for(let i=1;i<n;i++){const t=i/n,x=(1-t)*(1-t)*x1+2*(1-t)*t*mx+t*t*x2,y=(1-t)*(1-t)*y1+2*(1-t)*t*(my+sag)+t*t*y2;s+=`<circle cx="${x.toFixed(1)}" cy="${(y+3).toFixed(1)}" r="2.8" class="${cols[i%4]} twk" style="animation-delay:${(i%4)*.35}s"/>`}return s};
+const tower=(x,w,top)=>`<rect x="${x}" y="${top}" width="${w}" height="${196-top}" class="f-blue2 o"/>${[0,1,2].map(i=>`<rect x="${x+2+i*(w-10)/2}" y="${top-8}" width="8" height="9" class="f-blue2 o1"/>`).join('')}<path d="M${x-4} ${top-8}L${x+w/2} ${top-46}L${x+w+4} ${top-8}Z" class="f-coral o"/><path d="M${x+w/2} ${top-46}V${top-62}" class="o1"/><path d="M${x+w/2} ${top-62}l14 4-14 4z" class="f-yel o1 flag"/><rect x="${x+w/2-6}" y="${top+20}" width="12" height="16" rx="6" class="f-yel o1 twk"/>`;
+const post=(x,y)=>`<rect x="${x-2.5}" y="${y-22}" width="5" height="24" class="f-gold o1"/><circle cx="${x}" cy="${y-23}" r="4" class="f-gold o1"/>`;
+const rope=(x1,x2,y)=>`<path d="M${x1} ${y-18}Q${(x1+x2)/2} ${y-6} ${x2} ${y-18}" class="nf" style="stroke:var(--red);stroke-width:3"/>`;
+const sign=(x,y,w,t,fs=13)=>`<rect x="${x}" y="${y}" width="${w}" height="30" rx="8" class="f-gold o"/>${T(x+w/2,y+20,t,'tf tk','font-size:'+fs+'px')}`;
+const HEART=['..XX...XX..','.XXXX.XXXX.','XXXXXXXXXXX','XXXXXXXXXXX','.XXXXXXXXX.','..XXXXXXX..','...XXXXX...','....XXX....','.....X.....'];
+
+const EP=[
+{name:'Добро пожаловать',title:'Серия 1. Добро пожаловать в Байт-парк',
+scene:()=>{
+ let hp='';HEART.forEach((r,j)=>[...r].forEach((c,i)=>{if(c==='X')hp+=`<rect x="${114+i*12}" y="${30+j*12}" width="10" height="10" rx="2" class="f-coral pix" style="animation-delay:${((i+j)*.06).toFixed(2)}s"/>`}));
+ let tubes='';for(let i=0;i<14;i++)tubes+=`<rect x="${16+i*24}" y="178" width="8" height="18" rx="2" class="f-gray o1"/><path d="M${20+i*24} 176V160" class="spark" style="animation-delay:${(i%5)*.3}s"/>`;
+ let crowd='';for(let j=0;j<2;j++)for(let i=0;i<6;i++)crowd+=byteG(38+i*50,104+j*42,.42,'',['01001011','11000011','00111100','10101010'][(i+j)%4],(i+j)%3===0);
+ let cab='';const cc=['f-yel','f-mint','f-blue','f-coral'];for(let i=0;i<8;i++)cab+=`<g><rect x="-9" y="-12" width="18" height="18" rx="4" class="${cc[i%4]} o1"/><circle cx="-3" cy="-5" r="1.6" class="f-eye"/><circle cx="3" cy="-5" r="1.6" class="f-eye"/><animateMotion dur="4s" begin="${(-i*.5).toFixed(1)}s" repeatCount="indefinite" path="M90 160A90 22 0 1 0 270 160A90 22 0 1 0 90 160"/></g>`;
+ let scal='';for(let x=100;x<260;x+=16)scal+=`<path d="M${x} 92a8 8 0 0 0 16 0z" class="f-gold o1"/>`;
+ const track='M-20 172C80 142 140 200 220 174S330 142 380 162';
+ return sky()+
+ W(burst(70,40,26,'--yel',0)+burst(292,34,22,'--coral',.8)+burst(186,22,18,'--mint',1.5)+tower(40,50,96)+tower(270,50,96)+lights(65,58,295,58,16,14)+
+  `<path d="M90 148Q180 104 270 148" class="nf" style="stroke:var(--gold);stroke-width:8"/>`+`<rect x="110" y="98" width="140" height="38" rx="10" class="f-gold o"/>`+T(180,124,'Байт-парк','tf tk','font-size:22px')+byteG(160,140,1,''),'data-tag="gate"')+
+ W(`<path d="${track}" class="nf" style="stroke:#5A4630;stroke-width:12"/><path d="${track}" class="nf" style="stroke:#C7B08A;stroke-width:12;stroke-dasharray:3 9"/>`+
+  [['Склад',44],['Площадка',178],['Карусель',312]].map(p=>`<path d="M${p[1]} 168V134" class="o"/><rect x="${p[1]-34}" y="116" width="68" height="20" rx="5" class="f-gold o1"/>`+T(p[1],130,p[0],'tk','font-size:10px')).join('')+
+  `<g><g transform="translate(-30 -16)"><rect x="-38" y="2" width="24" height="12" rx="3" class="f-blue2 o1"/><circle cx="-31" cy="0" r="3.5" class="f-mint o1"/><circle cx="-21" cy="0" r="3.5" class="f-yel o1"/><rect x="-11" y="2" width="24" height="12" rx="3" class="f-blue2 o1"/><circle cx="-4" cy="0" r="3.5" class="f-coral o1"/><circle cx="6" cy="0" r="3.5" class="f-mint o1"/><rect x="16" y="-4" width="26" height="18" rx="3" class="f-red o"/><rect x="18" y="-14" width="12" height="11" class="f-red o1"/><rect x="34" y="-12" width="5" height="9" class="f-gray o1"/><circle cx="37" cy="-18" r="4" class="smoke"/><circle cx="23" cy="16" r="3" class="f-gray o1"/><circle cx="35" cy="16" r="3" class="f-gray o1"/></g><animateMotion dur="7s" repeatCount="indefinite" rotate="auto" path="${track}"/></g>`+
+  T(180,40,'Паровозик-шина','tf','font-size:20px')+T(180,62,'возит гостей-данные по всему парку','','font-size:11px'),'data-tag="train"')+
+ W(`<rect x="60" y="94" width="196" height="102" class="f-wood o"/><path d="M50 96L158 46 266 96Z" class="f-red o"/>`+sign(108,62,100,'Склад · SSD',12)+
+  [0,1,2].map(i=>`<rect x="${76+i*60}" y="106" width="44" height="34" rx="3" class="f-yel o1 win"/>`+crateIn(80+i*60,120,'f-coral')+crateIn(98+i*60,120,'f-blue')).join('')+
+  `<rect x="140" y="152" width="36" height="44" rx="4" class="f-wood2 o"/>`+byteG(280,140,.9,'','01001011',false)+`<text x="316" y="128" class="t tf rise" style="font-size:14px">z</text><text x="326" y="116" class="t tf rise" style="font-size:11px;animation-delay:.8s">z</text><circle cx="314" cy="34" r="16" class="f-yel"/><circle cx="321" cy="29" r="14" style="fill:#1A1F52"/>`,'data-tag="store"')+
+ W(`<rect x="16" y="88" width="328" height="104" rx="10" class="f-plaza o1"/>`+[40,96,152,208,264,320].map(x=>post(x,104)+post(x,186)).join('')+[[40,96],[96,152],[152,208],[208,264],[264,320]].map(r=>rope(r[0],r[1],104)+rope(r[0],r[1],186)).join('')+crowd+
+  sign(96,30,168,'Площадка · RAM',14)+T(180,78,'мест: 16 ГБ — много, но не бесконечно','','font-size:10px'),'data-tag="queue"')+
+ W(`<ellipse cx="180" cy="186" rx="98" ry="14" class="f-blue2 o"/><rect x="176" y="90" width="8" height="94" class="f-gold o1"/><path d="M100 92Q180 30 260 92Z" class="f-coral o"/><path d="M140 92Q160 50 180 42M220 92Q200 50 180 42" class="o1 nf" style="stroke:var(--yel)"/>${scal}<path d="M180 42V24" class="o1"/><path d="M180 24l14 4-14 4z" class="f-yel o1 flag"/>`+T(180,82,'CPU','tm tk','font-size:11px')+cab+
+  `<g transform="translate(316 168)"><rect x="-3" y="-10" width="6" height="28" class="f-gray o1"/><g class="spin"><path d="M-16 0H16M0-16V16" class="o" style="stroke:var(--gold);stroke-width:4"/></g></g>`+T(316,146,'турникет-кэш','','font-size:10px')+T(60,40,'кабинки — ядра','tf','font-size:14px')+T(290,40,'обороты — частота','tf','font-size:13px'),'data-tag="carousel"')+
+ W(hp+burst(60,60,24,'--yel',.4)+burst(304,70,22,'--mint',1.1)+burst(46,128,16,'--blue2',1.7)+burst(316,138,16,'--coral',.2)+tubes+T(180,156,'каждая искра — пиксель','tf','font-size:15px'),'data-tag="fire"')+
+ W(`<rect x="24" y="96" width="112" height="100" class="f-gray o"/><rect x="40" y="70" width="18" height="28" class="f-gray o1"/><circle cx="49" cy="58" r="7" class="smoke"/><path d="M86 112l-14 22h12l-6 20 18-26h-12l8-16z" class="f-yel o1 pulse"/>`+T(80,184,'БП','tm tk','font-size:12px')+
+  `<path d="M136 120C200 120 200 86 250 76" class="wire flow"/>`+lights(150,66,350,60,10,12)+fanIn(232,128,34)+fanIn(318,150,24)+T(250,24,'электростанция —','tf','font-size:14px')+T(250,44,'блок питания','tf','font-size:14px')+T(276,196,'вентиляторы','','font-size:11px'),'data-tag="power"')+
+ W(`<rect x="12" y="120" width="200" height="72" rx="10" class="f-plaza o1"/>`+[30,90,150,200].map(x=>post(x,136)+post(x,186)).join('')+`<rect x="236" y="110" width="110" height="86" class="f-wood o"/><path d="M228 112L291 78 354 112Z" class="f-red o"/>`+
+  `<rect x="-2" y="-2" width="364" height="224" class="f-night shade"/>`+[0,1].map(i=>`<rect x="${250+i*46}" y="126" width="36" height="28" rx="3" class="f-yel o1"/>`+crateIn(259+i*46,136,'f-coral')).join('')+T(291,176,'склад: всё цело','tf','font-size:13px')+T(112,166,'площадка пуста','tf','font-size:14px')+`<circle cx="70" cy="44" r="18" class="f-yel"/><circle cx="78" cy="38" r="16" style="fill:#0A0D2A"/>`+T(200,50,'Парк закрыт до утра','tf','font-size:18px'),'data-tag="night"');
+},
+frames:[
+ {show:['gate'],t:`Добро пожаловать в ${B('Байт-парк')}! Здесь каждый аттракцион — деталь компьютера. А наш гость — маленький ${B('Байт')}: на животике у него 8 огоньков-битов.`},
+ {show:['train'],t:`По всему парку ходит ${B('паровозик')} — это шины материнской платы. Он развозит гостей-данные между аттракционами: со склада на площадку, с площадки на карусель.`},
+ {show:['store'],t:`Байт живёт на ${B('складе — накопителе')}. Там тихо и надёжно. Даже ночью, когда парк обесточен, все ящики остаются на полках.`},
+ {show:['queue'],t:`Перед главным аттракционом — ${B('площадка ожидания, оперативка')}. Гостей привозят заранее, чтобы карусель ни секунды не простаивала. Площадка большая, но не бесконечная.`},
+ {show:['carousel'],t:`Главный аттракцион — ${B('Карусель-Процессор')}. Кабинки — ядра, все работают одновременно. Скорость оборотов — частота: миллиарды за секунду! А у входа турникет-кэш пропускает самых нужных гостей без очереди.`},
+ {show:['fire'],t:`Над парком — ${B('Фейерверк-шоу, видеокарта')}. Тысячи пусковых установок зажигают искры одновременно, и из искр-пикселей в небе складывается картинка.`},
+ {show:['power'],t:`Всё сияет благодаря ${B('электростанции — блоку питания')}. А огромные вентиляторы остужают аттракционы, чтобы ничего не перегрелось.`},
+ {show:['night'],t:`Парк закрывается. Свет гаснет — и ${B('площадка пустеет')}: оперативка без тока всё забывает. А на складе всё на месте до утра. Утром паровозик снова повезёт гостей на площадку.`}
+],
+remember:['Байт — 8 битов-огоньков','Паровозик = шина материнской платы','Склад = накопитель (SSD), хранит без тока','Площадка ожидания = оперативка, пустеет ночью','Карусель = процессор, кабинки = ядра, турникет = кэш','Фейерверк = видеокарта, искры = пиксели','Электростанция = блок питания'],
+deep:`<ul>
+<li><b>Бит и байт.</b> Бит — одна лампочка: 0 или 1. Байт — 8 битов, это 2⁸ = 256 разных комбинаций. Английская буква в кодировке UTF-8 занимает 1 байт, русская — 2 байта. Поэтому у нашего гостя ровно 8 огоньков.</li>
+<li><b>Шины — это много путей.</b> Главная шина PCIe состоит из параллельных линий: видеокарта обычно получает 16 линий (x16), NVMe SSD — 4 (x4). Каждое новое поколение PCIe примерно вдвое ускоряет одну линию.</li>
+<li><b>Почему гостей везут заранее.</b> Процессор работает в сотни раз быстрее, чем подвозятся данные. Если ждать каждого гостя от склада, карусель простаивала бы почти всё время. Поэтому данные заранее кладут в оперативку, а самое нужное — в кэш.</li>
+<li><b>Конвейер.</b> Настоящий процессор не ждёт, пока один гость докатается: пока одна команда выполняется, следующая уже проходит турникет. Это называется конвейером (pipeline).</li>
+<li><b>Где аналогия хромает.</b> «Гости» в процессоре — это команды и числа, а ядра никуда не крутятся. Карусель — просто картинка для идеи «много исполнителей работают одновременно и очень быстро».</li></ul>`,
+quiz:[
+ {q:'Сколько битов в одном байте?',a:['8','2','1024'],c:0,w:'8 битов дают 256 комбинаций — как 8 огоньков у нашего Байта.'},
+ {q:'Что в Байт-парке играет роль оперативки?',a:['Площадка ожидания перед каруселью','Склад-депо','Паровозик'],c:0,w:'Туда гостей привозят заранее, и ночью она пустеет.'},
+ {q:'Парк закрыли и выключили свет. Где гости остались?',a:['На складе — в накопителе','На площадке — в оперативке'],c:0,w:'Оперативка без электричества всё забывает, накопитель — нет.'}
+]}
+];
+
+
+const $=id=>document.getElementById(id);
+/* ---------- voice ---------- */
+const synth=('speechSynthesis' in window)?window.speechSynthesis:null;
+let voiceOn=false,ruVoice=null,speakId=0;
+const SAY=[[/UTF-8/g,'ю-ти-эф восемь'],[/PCIe/g,'пи-си-ай экспресс'],[/VRAM/g,'ви-рам'],[/CPU/g,'си-пи-ю'],[/RAM/g,'рам'],[/GPU/g,'джи-пи-ю'],[/NVMe/g,'эн-ви-эм-и'],[/SSD/g,'эс-эс-ди'],[/HDD/g,'эйч-ди-ди'],
+ [/(\d+)GB/g,'$1 гигабайт'],[/DDR(\d)-(\d+)/g,'ди-ди-эр $1, $2'],[/DDR(\d)/g,'ди-ди-эр $1'],[/CL(\d+)/g,'си-эль $1'],[/ГГц/g,'гигагерц'],[/ГБ/g,'гигабайт'],
+ [/МТ\/с/g,'мегатрансферов в секунду'],[/UEFI/g,'уефи'],[/BIOS/g,'биос'],[/POST/g,'пост'],[/XMP/g,'икс-эм-пи'],[/EXPO/g,'экспо'],[/M\.2/g,'эм-два'],
+ [/AM5/g,'эй-эм пять'],[/LGA/g,'эл-джи-эй '],[/Full HD/g,'фул эйч-ди'],[/Ctrl/g,'контрол'],[/Shift/g,'шифт'],[/Esc/g,'эскейп'],[/×/g,' на '],
+ [/Windows/g,'виндоус'],[/USB/g,'ю-эс-би'],[/L1/g,'эль один'],[/L2/g,'эль два'],[/L3/g,'эль три'],[/(\d) В(?=[\s,.)—]|$)/g,'$1 вольт'],[/\(Вт\)/g,''],[/\+/g,' '],[/ЦП/g,'цэ-пэ'],[/\//g,' или ']];
+function pickVoice(){if(!synth)return;const v=synth.getVoices().filter(x=>/^ru/i.test(x.lang));ruVoice=v.find(x=>/natural|online|google|milena|svetlana|dariya/i.test(x.name))||v[0]||null}
+if(synth){pickVoice();synth.onvoiceschanged=pickVoice}
+function speak(html,done){
+  if(!synth){done&&done();return}
+  synth.cancel();const id=++speakId;
+  const d=document.createElement('div');d.innerHTML=html;let t=d.textContent;
+  SAY.forEach(([r,s])=>{t=t.replace(r,s)});t=t.replace(/[А-ЯЁ]{3,}/g,w=>w.toLowerCase());
+  const parts=(t.match(/[^.!?…]+[.!?…]*/g)||[t]).map(s=>s.trim()).filter(Boolean);let i=0;
+  const next=()=>{if(id!==speakId)return;if(i>=parts.length){done&&done();return}
+    const u=new SpeechSynthesisUtterance(parts[i++]);u.lang='ru-RU';if(ruVoice)u.voice=ruVoice;u.rate=1;u.onend=next;u.onerror=next;synth.speak(u)};
+  next();
+}
+function hush(){speakId++;if(synth)synth.cancel()}
+
+const F=[{show:['gate'],t:`${B('Байт-парк')}. Серия первая — «Добро пожаловать».`},...EP[0].frames,{show:['night'],t:`${B('Конец первой серии.')} Сейчас начнём сначала…`}];
+let i=0,timer=null;
+$('stage').innerHTML=svgWrap(EP[0].scene());
+function show(){
+  const f=F[i],svg=$('stage').querySelector('svg');
+  svg.setAttribute('class',f.cls||'');
+  const sh=f.show||[];
+  svg.querySelectorAll('[data-tag]').forEach(el=>{const v=el.getAttribute('data-tag').split(' ').some(t=>sh.includes(t));if(v)el.removeAttribute('hidden');else el.setAttribute('hidden','')});
+  const p=$('subtext');p.classList.add('fade');
+  setTimeout(()=>{p.innerHTML=f.t;p.classList.remove('fade')},250);
+  $('pbar').style.width=((i+1)/F.length*100)+'%';
+  clearTimeout(timer);
+  if(voiceOn)speak(f.t,()=>{timer=setTimeout(next,1100)});
+  else timer=setTimeout(next,Math.max(5500,f.t.replace(/<[^>]+>/g,'').length*62));
+}
+function next(){i=(i+1)%F.length;show()}
+function wake(){if(voiceOn||!synth)return;voiceOn=true;pickVoice();$('hint').hidden=true;show()}
+document.addEventListener('pointerdown',wake);
+document.addEventListener('keydown',wake);
+if(!synth)$('hint').textContent='Мультик идёт сам — просто смотри';
+show();
+</script>
+
+</body>
+</html>
