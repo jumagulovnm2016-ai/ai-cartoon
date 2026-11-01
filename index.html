@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Мультик-учебник: как устроены нейросети — нейрон, слои, обучение, языковые модели, внимание, галлюцинации, железо.">
+<title>Как думает нейросеть</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@600;700&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: comic-strip player (stage + speech bubble) beside a study column; stacks on phones */
+:root{
+  --paper:#F4F7F1; --card:#FFFFFF; --ink:#1D2939; --muted:#5B6878; --line:#DCE3D8;
+  --wall:#E6F0FA; --wall2:#D5E4F3;
+  --stroke:#1D2939; --eye:#1D2939; --hat:#FFFFFF;
+  --yel:#FFC43D; --yel2:#F2A922; --grn:#2E9D68; --mint:#7ED9B0; --gold:#E7B422; --chip:#2A2F38;
+  --blue:#4A8BF5; --blue2:#A9C8FF; --coral:#FF6B57; --red:#E5484D; --wood:#C98B50; --wood2:#B07540;
+  --gray:#8D99A8; --scr:#DDE7F3; --night:#0B1020;
+  --ok:#1F8A57; --okbg:#E1F5EA; --bad:#C9353B; --badbg:#FDE8E8;
+  --f-disp:"Comfortaa","Nunito",system-ui,sans-serif;
+  --f-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#11161F; --card:#19212D; --ink:#E6ECF4; --muted:#9AA7B6; --line:#2A3443;
+  --wall:#18222F; --wall2:#202D3E; --stroke:#C3CDD9; --hat:#F3F5F8; --chip:#0C0F14;
+  --grn:#2B8F5F; --gray:#6E7A89; --scr:#26364A; --wood:#A8713F; --wood2:#8C5D33; --night:#000000;
+  --ok:#5BD29A; --okbg:#173326; --bad:#FF8A8F; --badbg:#3A1C20; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#11161F; --card:#19212D; --ink:#E6ECF4; --muted:#9AA7B6; --line:#2A3443;
+  --wall:#18222F; --wall2:#202D3E; --stroke:#C3CDD9; --hat:#F3F5F8; --chip:#0C0F14;
+  --grn:#2B8F5F; --gray:#6E7A89; --scr:#26364A; --wood:#A8713F; --wood2:#8C5D33; --night:#000000;
+  --ok:#5BD29A; --okbg:#173326; --bad:#FF8A8F; --badbg:#3A1C20; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+[hidden]{display:none!important}
+.wrap{max-width:1160px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{font-family:var(--f-disp);text-wrap:balance;margin:0;line-height:1.2}
+.top{display:grid;grid-template-columns:1fr auto;gap:8px 24px;align-items:end}
+.eyebrow{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:800}
+h1{font-size:clamp(28px,5vw,44px);font-weight:700}
+.lede{margin:0;color:var(--muted);max-width:60ch;grid-column:1}
+.progress{grid-column:2;grid-row:1/4;min-width:180px;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);font-weight:700}
+.progress .bar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;border:1.5px solid var(--stroke)}
+.progress .bar i{display:block;height:100%;background:var(--grn);width:0;transition:width .5s}
+@media (max-width:640px){.top{grid-template-columns:1fr}.progress{grid-column:1;grid-row:auto}}
+
+.eps{display:flex;gap:8px;overflow-x:auto;padding:4px 4px 10px;scrollbar-width:thin}
+.chip{flex:0 0 auto;display:flex;align-items:center;gap:8px;border:2px solid var(--stroke);background:var(--card);color:var(--ink);
+  border-radius:999px;padding:6px 14px 6px 6px;font:700 14px/1.2 var(--f-body);cursor:pointer;box-shadow:2px 2px 0 var(--stroke);transition:transform .15s}
+.chip:hover{transform:translateY(-1px)}
+.chip .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--wall2);font-family:var(--f-mono);font-size:13px}
+.chip.cur{background:var(--yel);color:#1D2939}
+.chip.cur .n{background:#fff}
+.chip.done .n{background:var(--grn);color:#fff}
+.chip.done .n::after{content:"✓"}
+.chip.done .n span{display:none}
+.chip:focus-visible,button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.player{display:flex;flex-direction:column;gap:14px;min-width:0}
+@media (min-width:901px){.player{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}}
+.ephead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.epnum{font-family:var(--f-mono);font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+h2{font-size:clamp(20px,3vw,26px)}
+.stage{border:3px solid var(--stroke);border-radius:18px;box-shadow:5px 5px 0 var(--stroke);overflow:hidden;
+  background-color:var(--wall);background-image:linear-gradient(var(--wall2) 1px,transparent 1px),linear-gradient(90deg,var(--wall2) 1px,transparent 1px);background-size:22px 22px}
+.stage svg{display:block;width:100%;height:auto}
+.sub{position:relative;background:var(--card);border:2.5px solid var(--stroke);border-radius:16px;padding:14px 18px;min-height:96px;box-shadow:3px 3px 0 var(--stroke)}
+.sub::before{content:"";position:absolute;left:34px;top:-12px;width:18px;height:18px;background:var(--card);border-left:2.5px solid var(--stroke);border-top:2.5px solid var(--stroke);transform:rotate(45deg)}
+.sub p{margin:0;font-size:17px;font-weight:600;max-width:65ch}
+.sub b{font-weight:800;color:var(--grn)}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{border:2px solid var(--stroke);background:var(--card);color:var(--ink);border-radius:12px;padding:9px 16px;font:800 15px/1 var(--f-body);cursor:pointer;box-shadow:2px 2px 0 var(--stroke)}
+.btn:active{transform:translate(2px,2px);box-shadow:none}
+.btn:disabled{opacity:.4;cursor:default;box-shadow:none}
+.btn.primary{background:var(--grn);color:#fff}
+.btn.on{background:var(--yel);color:#1D2939}
+.dots{display:flex;gap:6px;flex:1;justify-content:center;min-width:60px}
+.dots i{width:10px;height:10px;border-radius:50%;border:2px solid var(--stroke);background:transparent}
+.dots i.cur{background:var(--yel)}
+.dots i.seen{background:var(--stroke)}
+
+.learn{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:18px 20px}
+.card h3{font-size:18px;margin-bottom:10px}
+.remember{border:2px dashed var(--grn)}
+.remember ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.remember li{font-weight:700}
+.deep p,.deep li{color:var(--ink);font-size:15px}
+.deep p{margin:0 0 10px}
+.deep ul{margin:0 0 10px;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.deep code,.mono{font-family:var(--f-mono);font-size:.9em;background:var(--wall);padding:1px 5px;border-radius:5px}
+.tbl{overflow-x:auto;margin:6px 0 10px}
+.tbl table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tbl td:nth-child(n+2){font-family:var(--f-mono);font-size:13px}
+.q{display:flex;flex-direction:column;gap:8px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.q:last-of-type{border-bottom:0;margin-bottom:6px}
+.q p{margin:0;font-weight:800}
+.opt{text-align:left;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);border-radius:10px;padding:9px 12px;font:600 15px/1.35 var(--f-body);cursor:pointer}
+.opt:hover:not(:disabled){border-color:var(--stroke)}
+.opt:disabled{cursor:default}
+.opt.right{background:var(--okbg);border-color:var(--ok);color:var(--ink)}
+.opt.wrong{background:var(--badbg);border-color:var(--bad)}
+.why{font-size:14px;margin:0;color:var(--muted)}
+.why b{color:var(--ok)}
+.why.no b{color:var(--bad)}
+.qfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-weight:700;font-size:14px;color:var(--muted)}
+.link{background:none;border:0;color:var(--muted);text-decoration:underline;font:600 13px var(--f-body);cursor:pointer;padding:0}
+.nextep{align-self:flex-start}
+
+/* SVG cartoon */
+.o{stroke:var(--stroke);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.o1{stroke:var(--stroke);stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round}
+.nf{fill:none}
+.f-yel{fill:var(--yel)}.f-yel2{fill:var(--yel2)}.f-grn{fill:var(--grn)}.f-mint{fill:var(--mint)}.f-gold{fill:var(--gold)}
+.f-chip{fill:var(--chip)}.f-hat{fill:var(--hat)}.f-eye{fill:var(--eye)}.f-coral{fill:var(--coral)}.f-blue{fill:var(--blue)}
+.f-blue2{fill:var(--blue2)}.f-wood{fill:var(--wood)}.f-wood2{fill:var(--wood2)}.f-gray{fill:var(--gray)}.f-card{fill:var(--card)}
+.f-line{fill:var(--line)}.f-red{fill:var(--red)}.f-paper{fill:var(--paper)}.f-scr{fill:var(--scr)}.f-night{fill:var(--night)}.f-wall{fill:var(--wall)}
+.t{font-family:var(--f-body);font-weight:800;fill:var(--ink);font-size:10px;text-anchor:middle}
+.tm{font-family:var(--f-mono);font-weight:700}
+.td{font-family:var(--f-disp);font-weight:700}
+.tl{text-anchor:start}.te{text-anchor:end}
+.tw{fill:#fff}.tk{fill:var(--eye)}.tr{fill:var(--red)}
+.tchip{font-family:var(--f-mono);font-size:8px;font-weight:700;fill:var(--eye);text-anchor:middle}
+.lab{paint-order:stroke;stroke:var(--wall);stroke-width:3.5px;stroke-linejoin:round}
+.trace{fill:none;stroke:var(--gold);stroke-width:1.6;opacity:.85}
+.wire{fill:none;stroke:var(--coral);stroke-width:2.5;stroke-linecap:round}
+.air{fill:none;stroke:var(--blue);stroke-width:2;stroke-linecap:round}
+.road{fill:none;stroke:var(--gray);stroke-width:9;stroke-linecap:round;opacity:.55}
+.heat{fill:none;stroke:var(--coral);stroke-width:2.5;stroke-linecap:round}
+.hl{fill:none;stroke:var(--coral);stroke-width:3}
+.hlline{fill:none;stroke:var(--coral);stroke-width:2;stroke-dasharray:3 3}
+.px{fill:var(--scr)}
+
+.actor{transition:opacity .35s}
+.dim .actor:not(.on){opacity:.2}
+.actor.on{transform-box:fill-box;transform-origin:50% 100%;animation:pop .7s ease-out}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+.spin{transform-box:fill-box;transform-origin:center;animation:spin 1.1s linear infinite}
+.slow{animation-duration:3s}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hand{transform-box:fill-box;transform-origin:50% 100%;animation:spin 2s linear infinite}
+.fast .hand{animation-duration:.25s}
+.blink{transform-box:fill-box;transform-origin:center;animation:blink 4.5s infinite}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.armL,.armR{transform-box:fill-box;animation:stir 1.1s ease-in-out infinite alternate}
+.armL{transform-origin:100% 0}.armR{transform-origin:0 0}
+@keyframes stir{from{transform:rotate(-10deg)}to{transform:rotate(12deg)}}
+.fast .armL,.fast .armR{animation-duration:.13s}
+.mv{animation:mv var(--t,2.6s) ease-in-out infinite}
+@keyframes mv{0%,10%{transform:translate(0,0);opacity:1}60%,88%{transform:translate(var(--dx,0px),var(--dy,0px));opacity:1}100%{transform:translate(var(--dx,0px),var(--dy,0px));opacity:0}}
+.rise{animation:rise 2.4s ease-out infinite}
+@keyframes rise{0%{transform:translateY(0);opacity:0}15%{opacity:1}75%{opacity:1}100%{transform:translateY(-40px);opacity:0}}
+.pulse{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+.bob{animation:bob 1s ease-in-out infinite alternate}
+@keyframes bob{to{transform:translateY(-5px)}}
+.swap #cpu{animation:run 2.8s ease-in-out infinite;--dx:-150px}
+@keyframes run{0%,100%{transform:translateX(0)}40%,60%{transform:translateX(var(--dx))}}
+.off .dc{transform-box:fill-box;transform-origin:center;animation:fall 1.1s .5s ease-in forwards}
+@keyframes fall{to{transform:translateY(46px) rotate(30deg);opacity:0}}
+.shade{animation:shade .8s forwards}
+@keyframes shade{from{opacity:0}to{opacity:.6}}
+.grow{transform-box:fill-box;transform-origin:0 50%;animation:grow 1.4s ease-out both}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.flow{stroke-dasharray:6 6;animation:dash .7s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-24}}
+.seek{transform-box:fill-box;transform-origin:100% 100%;animation:seek .45s ease-in-out infinite alternate}
+@keyframes seek{from{transform:rotate(-9deg)}to{transform:rotate(11deg)}}
+.press{animation:press 1.4s ease-in-out infinite}
+@keyframes press{0%,30%,100%{transform:translateY(0)}45%,60%{transform:translateY(4px)}}
+.pxw{animation:pxw 2.4s ease-in-out infinite}
+@keyframes pxw{0%,100%{fill:var(--scr)}45%{fill:var(--blue)}60%{fill:var(--coral)}}
+.tok{fill:var(--ok)}
+.appear{animation:appear .5s both}
+@keyframes appear{from{opacity:0}to{opacity:1}}
+.needle{transform-box:fill-box;transform-origin:50% 100%;transform:rotate(-55deg);transition:transform .9s cubic-bezier(.3,1.4,.5,1)}
+.oc .needle{transform:rotate(28deg)}.volt .needle{transform:rotate(52deg)}.xmp .needle{transform:rotate(-50deg)}
+.crash .needle{animation:wob .25s ease-in-out infinite alternate}
+@keyframes wob{from{transform:rotate(68deg)}to{transform:rotate(86deg)}}
+.therm{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(.35);transition:transform .9s}
+.oc .therm{transform:scaleY(.6)}.volt .therm{transform:scaleY(.85)}.crash .therm{transform:scaleY(1)}.xmp .therm{transform:scaleY(.37)}
+.nr{fill:var(--hat);transition:fill .4s}
+.lit .nr,.a1 .ly1 .nr,.a2 .ly1 .nr,.a2 .ly2 .nr,.a3 .ly1 .nr,.a3 .ly2 .nr,.a3 .ly3 .nr,.a5 .nr{fill:var(--yel)}
+.run .nr{animation:lighton 1.8s infinite}
+@keyframes lighton{0%,15%{fill:var(--hat)}30%,55%{fill:var(--yel)}75%,100%{fill:var(--hat)}}
+.wire2{fill:none;stroke-linecap:round;opacity:.75}.w-pos{stroke:var(--grn)}.w-neg{stroke:var(--coral)}
+.twist{transform-box:fill-box;transform-origin:50% 100%;animation:twist 1.2s ease-in-out infinite alternate}
+@keyframes twist{from{transform:rotate(-40deg)}to{transform:rotate(40deg)}}
+.draw{stroke-dasharray:420;stroke-dashoffset:420;animation:draw 1.4s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.drop{transform-box:fill-box;transform-origin:center;animation:drop 1.4s ease-in forwards}
+@keyframes drop{to{transform:translate(-30px,60px) rotate(-40deg);opacity:0}}
+.fog{fill:var(--hat);opacity:.45}
+@media (prefers-reduced-motion:reduce){svg *{animation:none!important}.actor{transition:none}}
+
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">Мультик-учебник · 10 серий</p>
+    <h1>Как думает нейросеть</h1>
+    <p class="lede">Что внутри ИИ — от одной лампочки-нейрона до ChatGPT и Claude: как сеть учится, почему ошибается, сколько видеопамяти ей нужно и как пользоваться ею с умом. Смотри кадры, включай голос, читай «Взрослым словами», отвечай на вопросы.</p>
+    <div class="progress"><span id="prog">Пройдено 0 из 10</span><div class="bar"><i id="progbar"></i></div></div>
+  </header>
+
+  <nav class="eps" id="eps" aria-label="Серии"></nav>
+
+  <main class="grid">
+    <section class="player" aria-live="polite">
+      <div class="ephead"><span class="epnum" id="epnum"></span><h2 id="eptitle"></h2></div>
+      <div class="stage" id="stage"></div>
+      <div class="sub"><p id="subtext"></p></div>
+      <div class="controls">
+        <button class="btn" id="prev" type="button">Назад</button>
+        <div class="dots" id="dots"></div>
+        <button class="btn" id="voice" type="button" aria-pressed="false">Голос</button>
+        <button class="btn" id="play" type="button">Авто</button>
+        <button class="btn primary" id="next" type="button">Дальше</button>
+      </div>
+    </section>
+    <aside class="learn">
+      <section class="card remember"><h3>Запомни</h3><ul id="rem"></ul></section>
+      <section class="card deep"><h3>Взрослым словами</h3><div id="deep"></div></section>
+      <section class="card quiz"><h3>Проверь себя</h3><div id="quiz"></div></section>
+      <button class="btn primary nextep" id="nextep" type="button"></button>
+    </aside>
+  </main>
+</div>
+
+<script>
+/* ---------- drawing helpers ---------- */
+const W=(inner,a='')=>`<g ${a}>${inner}</g>`;
+const T=(x,y,s,c='',st='')=>`<text x="${x}" y="${y}" class="t ${c}"${st?` style="${st}"`:''}>${s}</text>`;
+const face=(cx,cy)=>`<g class="blink"><circle cx="${cx-8}" cy="${cy}" r="3" class="f-eye"/><circle cx="${cx+8}" cy="${cy}" r="3" class="f-eye"/></g><path d="M${cx-6} ${cy+7}q6 5 12 0" class="o nf"/><circle cx="${cx-14}" cy="${cy+6}" r="3" class="f-coral" opacity=".45"/><circle cx="${cx+14}" cy="${cy+6}" r="3" class="f-coral" opacity=".45"/>`;
+function chef(x,y,s=1,a=''){
+  let pins='';for(let i=0;i<4;i++){const p=8+i*11;pins+=`<path d="M-6 ${p}h6M50 ${p}h6" class="o"/>`}
+  return W(`<g transform="translate(${x} ${y}) scale(${s})">
+  <path d="M17 50v22M33 50v22M11 72h8M31 72h8" class="o nf"/>
+  <g class="armL"><path d="M2 26q-14 6-14 20" class="o nf"/><circle cx="-12" cy="48" r="4.5" class="f-hat o"/></g>
+  <g class="armR"><path d="M48 26q14 6 14 20" class="o nf"/><circle cx="62" cy="48" r="4.5" class="f-hat o"/></g>
+  ${pins}<rect width="50" height="50" rx="8" class="f-yel o"/>
+  <rect x="10" y="33" width="30" height="11" rx="2" class="f-yel2"/><text x="25" y="41.5" class="tchip">CPU</text>
+  ${face(25,18)}
+  <circle cx="13" cy="-9" r="8" class="f-hat o"/><circle cx="37" cy="-9" r="8" class="f-hat o"/><circle cx="25" cy="-14" r="10" class="f-hat o"/><rect x="8" y="-7" width="34" height="8" rx="2" class="f-hat o"/>
+  </g>`,a);
+}
+function desk(x,y,w,a='',lab=''){
+  let c='',k='';const n=Math.floor((w-6)/24);
+  for(let i=0;i<n;i++)c+=`<rect x="${6+i*24}" y="4" width="16" height="10" rx="1.5" class="f-chip"/>`;
+  for(let i=5;i<w-5;i+=5)k+=`<rect x="${i}" y="17" width="3" height="5" class="f-gold"/>`;
+  return W(`<g transform="translate(${x} ${y})"><path d="M8 20v30M${w-8} 20v30M4 50h8M${w-12} 50h8" class="o nf"/>${k}<rect width="${w}" height="18" rx="3" class="f-grn o"/>${c}${lab?T(w/2,34,lab,'lab'):''}</g>`,a);
+}
+const crateIn=(x,y,c)=>`<g transform="translate(${x} ${y})"><rect width="18" height="14" rx="2" class="${c} o"/><path d="M0 5h18M9 5v9" class="o1 nf"/></g>`;
+const crate=(x,y,c='f-coral',a='')=>W(crateIn(x,y,c),a);
+function cupboard(x,y,s=1,a='',lab=''){
+  return W(`<g transform="translate(${x} ${y}) scale(${s})"><rect width="70" height="100" rx="4" class="f-wood o"/><rect x="6" y="6" width="58" height="88" rx="2" class="f-wood2"/><path d="M6 36h58M6 66h58" class="o nf"/>
+  ${crateIn(10,22,'f-coral')}${crateIn(34,22,'f-blue')}${crateIn(12,52,'f-mint')}${crateIn(38,52,'f-yel')}${crateIn(16,80,'f-blue')}${crateIn(40,80,'f-coral')}
+  ${lab?T(35,-7,lab,'lab'):''}</g>`,a);
+}
+const fanIn=(cx,cy,r,cls='spin')=>`<g transform="translate(${cx} ${cy})"><circle r="${r}" class="f-card o"/><g class="${cls}">${[0,90,180,270].map(d=>`<ellipse cx="${(r*.45).toFixed(1)}" rx="${(r*.42).toFixed(1)}" ry="${(r*.17).toFixed(1)}" transform="rotate(${d})" class="f-blue2"/>`).join('')}</g><circle r="${(r*.22).toFixed(1)}" class="f-eye"/></g>`;
+function gpu(x,y,s=1,a='',lab=''){
+  return W(`<g transform="translate(${x} ${y}) scale(${s})">
+  <path d="M20 38v18M46 38v18M14 56h10M40 56h10" class="o nf"/>
+  <g class="armR"><path d="M64 18q8-2 9-10" class="o nf"/><circle cx="73" cy="6" r="3.5" class="f-coral o"/></g>
+  <rect x="-4" y="3" width="5" height="32" class="f-gray o1"/>
+  <rect width="66" height="38" rx="5" class="f-blue o"/>${fanIn(20,19,13)}
+  <g class="blink"><circle cx="41" cy="14" r="2.4" class="f-eye"/><circle cx="53" cy="14" r="2.4" class="f-eye"/></g><path d="M42 21q5 4 10 0" class="o nf"/>
+  <ellipse cx="47" cy="-2" rx="14" ry="5" class="f-coral o"/><circle cx="47" cy="-8" r="2.5" class="f-coral o"/>
+  <text x="49" y="33" class="tchip">GPU</text>${lab?T(33,-16,lab,'lab'):''}</g>`,a);
+}
+const psuIn=(x,y)=>`<g transform="translate(${x} ${y})"><rect width="52" height="34" rx="4" class="f-gray o"/><path d="M29 5l-10 13h8l-4 12 12-15h-8l5-10z" class="f-yel o1"/></g>`;
+const dot=(p,d,b='0s')=>`<circle r="2.6" class="f-gold"><animateMotion dur="${d}" begin="${b}" repeatCount="indefinite" path="${p}"/></circle>`;
+const floor=(a='id="mobo" class="actor"')=>W(`<rect x="-2" y="196" width="364" height="26" class="f-grn"/><path d="M118 203h80l6 6h158" class="trace"/><path d="M128 216h60l5-5h50M250 216h112" class="trace"/>${dot('M118 203h80l6 6h158','3.2s')}${dot('M128 216h60l5-5h50','2.2s','.8s')}${T(60,212,'Материнская плата','tw','font-size:9px')}`,a);
+const clock=(cx,cy,r)=>`<circle cx="${cx}" cy="${cy}" r="${r}" class="f-hat o"/><g class="hand"><path d="M${cx} ${cy}V${cy-r+5}" class="o"/></g><circle cx="${cx}" cy="${cy}" r="2.5" class="f-eye"/>`;
+function boss(x,y,s=1,a=''){return W(`<g transform="translate(${x} ${y}) scale(${s})"><path d="M13 40v20M27 40v20M8 60h8M24 60h8" class="o nf"/><g class="armL"><path d="M2 20q-10 4-10 16" class="o nf"/><circle cx="-8" cy="37" r="4" class="f-hat o"/></g><rect width="40" height="40" rx="6" class="f-mint o"/><circle cx="13" cy="15" r="5.5" class="f-hat o1"/><circle cx="27" cy="15" r="5.5" class="f-hat o1"/><path d="M18.5 15h3" class="o1"/><g class="blink"><circle cx="13" cy="15" r="2" class="f-eye"/><circle cx="27" cy="15" r="2" class="f-eye"/></g><path d="M15 25q5 4 10 0" class="o nf"/><text x="20" y="37" class="tchip">UEFI</text><rect x="38" y="12" width="22" height="28" rx="2" class="f-hat o"/><rect x="44" y="9" width="10" height="5" rx="1" class="f-gray o1"/><path d="M42 21h14M42 27h14M42 33h10" class="o1"/></g>`,a)}
+const arc=(cx,cy,r,a0,a1)=>{const p=a=>[cx+r*Math.sin(a*Math.PI/180),cy-r*Math.cos(a*Math.PI/180)].map(v=>v.toFixed(1)).join(' ');return `M${p(a0)}A${r} ${r} 0 0 1 ${p(a1)}`};
+const svgWrap=s=>`<svg viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Кадр мультика">${s}</svg>`;
+const B=s=>`<b>${s}</b>`;
+
+/* ---------- episodes ---------- */
+function nrn(cx,cy,r,cls='',d=0,fc=true){
+  const e=r*.36,er=Math.max(1.2,r*.12),f=v=>v.toFixed(1);
+  return `<g class="nrn ${cls}"><circle cx="${cx}" cy="${f(cy)}" r="${r}" class="nr o" style="animation-delay:${d}s"/>${fc?`<g class="blink"><circle cx="${f(cx-e)}" cy="${f(cy-r*.15)}" r="${f(er)}" class="f-eye"/><circle cx="${f(cx+e)}" cy="${f(cy-r*.15)}" r="${f(er)}" class="f-eye"/></g><path d="M${f(cx-r*.3)} ${f(cy+r*.25)}q${f(r*.3)} ${f(r*.25)} ${f(r*.6)} 0" class="o1 nf"/>`:''}</g>`;
+}
+function net(L,top,bot,r=9,fc=false){
+  const pos=L.map(l=>{const t=l.t??top,b=l.b??bot,a=[];for(let i=0;i<l.n;i++)a.push([l.x,l.n===1?(t+b)/2:t+(b-t)*i/(l.n-1)]);return a});
+  let w='',n='';
+  for(let k=0;k<L.length-1;k++)pos[k].forEach((p,i)=>pos[k+1].forEach((q,j)=>{const s=1+((i*7+j*3+k*5)%4)*.8,neg=(i+j+k)%5===0;
+    w+=`<line x1="${p[0]}" y1="${p[1].toFixed(1)}" x2="${q[0]}" y2="${q[1].toFixed(1)}" class="wire2 ${neg?'w-neg':'w-pos'}" style="stroke-width:${s.toFixed(1)}"/>`}));
+  pos.forEach((a,k)=>a.forEach(p=>{n+=nrn(p[0],p[1],r,'ly'+(k+1),k*.3,fc)}));
+  return w+n;
+}
+const cat=(x,y,s=1,c='f-yel',e='f-eye')=>`<g transform="translate(${x} ${y}) scale(${s})"><rect width="70" height="70" rx="8" class="f-card o"/><path d="M17 28L19 9l14 11zM53 28L51 9 37 20z" class="${c} o"/><circle cx="35" cy="39" r="20" class="${c} o"/><circle cx="28" cy="36" r="2.8" class="${e}"/><circle cx="42" cy="36" r="2.8" class="${e}"/><path d="M33 43h4l-2 3z" class="f-coral"/><path d="M12 41h13M12 47h13M45 41h13M45 47h13" class="o1"/></g>`;
+const dog=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})"><rect width="70" height="70" rx="8" class="f-card o"/><ellipse cx="35" cy="38" rx="19" ry="21" class="f-wood o"/><ellipse cx="15" cy="34" rx="6" ry="14" class="f-wood2 o"/><ellipse cx="55" cy="34" rx="6" ry="14" class="f-wood2 o"/><circle cx="28" cy="32" r="2.8" class="f-eye"/><circle cx="42" cy="32" r="2.8" class="f-eye"/><ellipse cx="35" cy="45" rx="5.5" ry="3.8" class="f-eye"/><path d="M35 49v5" class="o1"/></g>`;
+const knob=(cx,cy,r,d=0)=>`<circle cx="${cx}" cy="${cy}" r="${r}" class="f-card o"/><g class="twist" style="animation-delay:${d}s"><path d="M${cx} ${cy}V${cy-r+2}" class="o"/></g>`;
+const bub=(x,y,w,h,txt,c='',fs=12)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" class="f-card o"/><path d="M${x+16} ${y+h-1.5}l-6 10 15-10z" class="f-card o"/>${T(x+w/2,y+h/2+fs*.35,txt,'td '+c,`font-size:${fs}px`)}`;
+function teacher(x,y,a=''){return W(`<g transform="translate(${x} ${y})"><path d="M-6 18v22M6 18v22M-11 40h8M3 40h8" class="o nf"/><g class="armR"><path d="M17 2q12-4 16-18" class="o nf"/></g><circle r="20" class="f-mint o"/>${face(0,-3)}<path d="M-22 -17l22-10 22 10-22 9z" class="f-chip o1"/><path d="M16 -15v12" class="o1"/><circle cx="16" cy="-2" r="2.6" class="f-yel"/></g>`,a)}
+function blocks(words,x0,y,h=24,fs=12){let x=x0,s='',pos=[];const cl=['f-blue2','f-yel','f-mint'];
+  words.forEach((w,i)=>{const wd=w.replace(/ /g,'').length*fs*.6+14;s+=`<rect x="${x.toFixed(1)}" y="${y}" width="${wd.toFixed(1)}" height="${h}" rx="5" class="${cl[i%3]} o1"/>`+T(x+wd/2,y+h/2+fs*.36,w.trim(),'tk','font-size:'+fs+'px');pos.push([x,wd]);x+=wd+6});return {s,pos}}
+function arcTo(a,b,y,hgt,w,lab){const x1=a[0]+a[1]/2,x2=b[0]+b[1]/2,mx=(x1+x2)/2;return `<path d="M${x1.toFixed(1)} ${y}Q${mx.toFixed(1)} ${y-hgt*2} ${x2.toFixed(1)} ${y}" class="nf draw" style="stroke:var(--coral);stroke-width:${w};stroke-linecap:round"/>`+T(mx,y-hgt-6,lab,'tm tr','font-size:11px')}
+const sheet=(x,y,a='')=>W(`<rect x="${x}" y="${y}" width="24" height="30" rx="2" class="f-hat o1"/><path d="M${x+4} ${y+8}h16M${x+4} ${y+14}h16M${x+4} ${y+20}h11" class="o1"/>`,a);
+const gauge=(cx,cy,ang,lab)=>{const g=(c,a0,a1)=>`<path d="${arc(cx,cy,44,a0,a1)}" class="nf" style="stroke:var(${c});stroke-width:10"/>`;return g('--red',-90,-30)+g('--yel',-30,30)+g('--grn',30,90)+`<path d="M${cx} ${cy}V${cy-38}" class="o" style="stroke-width:4" transform="rotate(${ang} ${cx} ${cy})"/><circle cx="${cx}" cy="${cy}" r="6" class="f-eye"/>`+T(cx,cy+26,lab,'td','font-size:11px')};
+const matrix=(x,y,vals,hi=false)=>{let s=`<rect x="${x}" y="${y}" width="60" height="60" rx="3" class="f-card o1"/>`;vals.forEach((v,i)=>{const cx=x+10+(i%3)*20,cy=y+14+Math.floor(i/3)*20;if(hi)s+=`<rect x="${cx-9}" y="${cy-9}" width="18" height="16" rx="2" class="px pxw" style="animation-delay:${(i*.15).toFixed(2)}s"/>`;s+=T(cx,cy+3,v,'tm','font-size:9px')});return s};
+function checklist(items,x,y,gap){return items.map((t,i)=>`<rect x="${x}" y="${y+i*gap-12}" width="16" height="16" rx="3" class="f-card o1"/><text x="${x+8}" y="${y+i*gap+1}" class="t tok appear" style="font-size:14px;animation-delay:${(.4+i*.6).toFixed(1)}s">✓</text>`+T(x+26,y+i*gap,t,'tl','font-size:11px')).join('')}
+
+const EP=[
+{name:'Что такое нейросеть',title:'Ящик, который отвечает',
+scene:()=>W(cat(16,74),'data-tag="in"')+
+ W(`<path d="M90 110H118" class="wire flow"/><path d="M250 110H268" class="wire flow"/>`,'data-tag="arr"')+
+ `<rect x="120" y="46" width="128" height="128" rx="14" class="f-card o"/>`+T(184,192,'нейросеть','td','font-size:12px')+
+ W(T(184,128,'?','td','font-size:48px'),'data-tag="q"')+
+ W(net([{x:142,n:3},{x:184,n:4},{x:226,n:2,t:90,b:130}],64,156,8),'data-tag="inner"')+
+ W([0,1,2,3,4].map(i=>knob(140+i*22,34,7,i*.2)).join('')+T(184,16,'веса — ручки настройки','td','font-size:11px'),'data-tag="dials"')+
+ W(`<rect x="270" y="90" width="82" height="40" rx="10" class="f-card o"/>`+T(311,115,'Это кот!','td','font-size:12px'),'data-tag="out"'),
+frames:[
+ {show:['in','arr','q','out'],t:`Нейросеть — это ящик: на вход даём картинку, на выходе получаем ответ «кот». Что внутри? ${B('Не волшебство и не живой мозг')}.`},
+ {show:['in','arr','inner'],t:`Внутри — тысячи, а в больших моделях миллиарды крошечных «лампочек». Это ${B('искусственные нейроны')}, соединённые проводами.`},
+ {show:['in','arr','inner','dials'],t:`У каждого провода есть ручка-регулятор — ${B('вес')}. Именно в этих числах хранится всё, что сеть «знает». Больше там ничего нет.`},
+ {show:['in','arr','inner','dials','out'],cls:'run',t:`Картинка превращается в числа, числа бегут по проводам, умножаются на веса — и на выходе получается ответ. Вся нейросеть — это ${B('одна очень большая формула')}.`}
+],
+remember:['Нейросеть — формула с огромным числом настроек','Настройки называются весами (параметрами)','«Знания» сети — это значения её весов','На входе и выходе — всегда числа'],
+deep:`<ul>
+<li><b>Картинка для сети — таблица чисел.</b> Каждый пиксель — три числа (красный, зелёный, синий) от 0 до 255. Фото 1000×1000 — это 3 миллиона чисел. Текст тоже переводят в числа.</li>
+<li><b>Сколько весов:</b> у маленьких сетей — тысячи и миллионы, у крупных языковых моделей — от единиц до сотен миллиардов.</li>
+<li><b>«Нейрон» — метафора, не анатомия.</b> Искусственный нейрон похож на биологический только идеей «много входов — один выход». Настоящий нейрон устроен несравнимо сложнее.</li>
+<li><b>Где аналогия хромает:</b> в нашем мультике лампочки нарисованы по одной. В реальной сети нейроны не отдельные детали, а строки в огромных таблицах чисел, и считаются они все разом.</li></ul>`,
+quiz:[
+ {q:'Где хранятся «знания» нейросети?',a:['В весах — числах на связях','В отдельной базе фактов, которую она читает','В интернете — она всё ищет на ходу'],c:0,w:'Обычная модель без поиска отвечает только тем, что «запечено» в весах при обучении.'},
+ {q:'Картинка для нейросети — это…',a:['набор чисел','набор слов','фотография, которую она видит глазами'],c:0,w:'Каждый пиксель кодируется числами яркости цветов.'}
+]},
+
+{name:'Один нейрон',title:'Одна лампочка: умножить, сложить, сравнить',
+scene:()=>{
+ const card=(y,t)=>`<rect x="14" y="${y}" width="86" height="30" rx="8" class="f-card o"/>`+T(57,y+19,t,'td','font-size:11px');
+ const badge=(y,v,c)=>`<circle cx="114" cy="${y+15}" r="11" class="${c} o1"/>`+T(114,y+19,v,'tm tk','font-size:11px');
+ const lamp=(on)=>`<path d="M310 128h16v10h-16z" class="f-gray o1"/><circle cx="318" cy="112" r="16" class="${on?'f-yel':'f-hat'} o"/>`+(on?`<path d="M318 86v-8M296 96l-6-5M340 96l6-5M290 112h-8M346 112h8" class="o pulse"/>`:'');
+ return W(card(40,'Солнце')+card(95,'Дождь')+card(150,'Выходной')+nrn(240,110,28,'',0)+`<path d="M270 112H292" class="wire"/>`,'data-tag="base"')+
+ W(`<path d="M126 55L214 104M126 110H212M126 165L214 116" class="nf" style="stroke:var(--gray);stroke-width:2"/>`,'data-tag="plain"')+
+ W(`<path d="M126 55L214 104" class="wire2 w-pos" style="stroke-width:5"/><path d="M126 110H212" class="wire2 w-neg" style="stroke-width:7"/><path d="M126 165L214 116" class="wire2 w-pos" style="stroke-width:3"/>`+T(166,72,'×2','tm','font-size:12px')+T(166,102,'×−3','tm tr','font-size:12px')+T(160,156,'×1','tm','font-size:12px'),'data-tag="w"')+
+ W(T(240,66,'порог: 2','tm','font-size:11px'),'data-tag="thr"')+
+ W(badge(40,'1','f-yel')+badge(95,'0','f-hat')+badge(150,'1','f-yel')+nrn(240,110,28,'lit',0)+`<rect x="196" y="152" width="88" height="28" rx="6" class="f-card o1"/>`+T(240,170,'2+0+1 = 3','tm','font-size:11px')+lamp(true)+T(318,160,'гулять!','td tok','font-size:12px'),'data-tag="sunny"')+
+ W(badge(40,'1','f-yel')+badge(95,'1','f-yel')+badge(150,'1','f-yel')+`<rect x="196" y="152" width="88" height="28" rx="6" class="f-card o1"/>`+T(240,170,'2−3+1 = 0','tm','font-size:11px')+lamp(false)+T(318,160,'дома','td','font-size:12px'),'data-tag="rainy"');
+},
+frames:[
+ {show:['base','plain'],t:`Разберём одну лампочку-нейрон. Её задача — решить, ${B('идти ли гулять')}. У неё три входа: солнце, дождь, выходной.`},
+ {show:['base','w'],t:`У каждого входа свой ${B('вес')}. Солнце важно: ×2. Дождь сильно против: ×−3. Выходной немного за: ×1. Толстый провод — сильное влияние, красный — «против».`},
+ {show:['base','w','thr','sunny'],t:`Солнечный выходной: 1×2 + 0×(−3) + 1×1 = 3. Это больше ${B('порога')} 2 — нейрон загорается: «гулять!».`},
+ {show:['base','w','thr','rainy'],t:`А если ещё и дождь: 2 − 3 + 1 = 0. Меньше порога — лампочка не горит. Вот и вся «мысль» одного нейрона: ${B('умножить, сложить, сравнить')}.`}
+],
+remember:['Нейрон умножает входы на веса и складывает','Результат сравнивается с порогом','Положительный вес — «за», отрицательный — «против»','Один нейрон прост; сила — в их количестве'],
+deep:`<ul>
+<li><b>Формула нейрона:</b> выход = f(w₁·x₁ + w₂·x₂ + … + b), где w — веса, x — входы, b — смещение (порог со знаком минус), f — функция активации.</li>
+<li><b>Плавная активация.</b> В реальных сетях вместо жёсткого «горит / не горит» используют плавные функции. Самая популярная, ReLU, превращает отрицательное число в 0, а положительное оставляет как есть. Плавность нужна, чтобы сеть можно было обучать маленькими поправками.</li>
+<li><b>Знакомая вещь из медицины:</b> бальная шкала риска — это по сути один нейрон. Каждый фактор получает свой вес-балл, баллы складываются, сумма сравнивается с порогом. Разница в том, что веса шкалы подбирали люди по исследованиям, а нейросеть подбирает их сама.</li></ul>`,
+quiz:[
+ {q:'Солнце 1, дождь 1, выходной 0. Веса +2, −3, +1, порог 2. Загорится?',a:['Да','Нет: 2 − 3 + 0 = −1, меньше порога'],c:1,w:'Умножаем каждый вход на вес, складываем и сравниваем с порогом.'},
+ {q:'Что значит отрицательный вес?',a:['Вход «голосует» против','Нейрон сломан','Вход не важен'],c:0,w:'Чем сильнее такой вход, тем меньше итоговая сумма.'}
+]},
+
+{name:'Слои',title:'Слои: от пикселей к «это кот»',
+scene:()=>W(net([{x:30,n:5},{x:92,n:5},{x:154,n:4},{x:216,n:3,t:72,b:158},{x:290,n:2,t:90,b:140}],50,180,9))+
+ [['пиксели',30],['линии',92],['формы',154],['уши, глаза',216],['ответ',290]].map((l,i)=>W(T(l[1],32,l[0],'td','font-size:11px'),`data-tag="lab${i+1}"`)).join('')+
+ W(T(304,94,'кот 92%','tl tm tok','font-size:10px')+T(304,144,'пёс 8%','tl tm','font-size:10px'),'data-tag="out"')+
+ W(`<rect x="8" y="196" width="344" height="18" rx="4" class="f-card o1"/>`+T(180,209,'Чем больше слоёв, тем сложнее узоры — это и есть «глубокое» обучение','','font-size:9px'),'data-tag="out"'),
+frames:[
+ {cls:'a1',show:['lab1'],t:`Нейроны собраны в ${B('слои')}, как бригады на конвейере. Первый слой получает сырые числа — пиксели картинки.`},
+ {cls:'a2',show:['lab1','lab2'],t:`Второй слой замечает самое простое: ${B('линии и края')}.`},
+ {cls:'a3',show:['lab1','lab2','lab3'],t:`Третий собирает из линий ${B('формы')}: круги, уголки, треугольники.`},
+ {cls:'a5',show:['lab1','lab2','lab3','lab4','lab5','out'],t:`Следующие слои узнают сложное — «ухо», «глаз», «усы» — и выходной слой голосует: ${B('кот, уверенность 92 %')}.`}
+],
+remember:['Нейроны собраны в слои','Ранние слои видят простое, поздние — сложное','Много слоёв = глубокое обучение','Что ищет каждый слой, сеть решает сама'],
+deep:`<ul>
+<li><b>Никто не программирует слои вручную.</b> Что будет искать каждый нейрон, сеть находит сама при обучении. В этом её сила, и в этом же слабость: внутренние признаки трудно объяснить, отсюда выражение «чёрный ящик».</li>
+<li><b>Пример из медицины.</b> В исследовании 2018 года (Zech и соавт., PLOS Medicine) сеть для поиска пневмонии на рентгенограммах научилась узнавать, в какой больнице сделан снимок, и частично опиралась на это, а не только на лёгкие. На снимках из другой больницы точность упала. Сеть выучила то, что помогало угадывать, а не то, что хотели врачи.</li>
+<li><b>«92 %» — не вероятность правоты.</b> Это уверенность самой сети, и она бывает завышена. Сеть может быть уверена на 99 % и ошибаться.</li></ul>`,
+quiz:[
+ {q:'Кто решает, какие признаки ищет каждый слой?',a:['Программист вручную','Сеть находит сама при обучении'],c:1,w:'Поэтому сети и называют «чёрным ящиком»: признаки не всегда понятны людям.'},
+ {q:'Сеть пишет «кот, 99 %». Это значит…',a:['что это точно кот','что сеть уверена, но может ошибаться'],c:1,w:'Уверенность модели и её реальная точность — разные вещи.'}
+]},
+
+{name:'Обучение',title:'Обучение: угадай и подкрути',
+scene:()=>W(dog(14,64)+`<path d="M88 100H108" class="wire flow"/><rect x="110" y="48" width="110" height="110" rx="12" class="f-card o"/>`+net([{x:130,n:3},{x:165,n:3},{x:200,n:2,t:88,b:118}],70,136,7)+bub(232,40,70,32,'кот?')+teacher(300,156)+bub(244,96,92,30,'Собака!','tr'),'data-tag="lesson"')+
+ W(T(165,178,'ошибка','td','font-size:11px')+`<rect x="110" y="186" width="110" height="10" rx="5" class="f-line o1"/><rect x="110" y="186" width="106" height="10" rx="5" class="f-red"/>`,'data-tag="err"')+
+ W([0,1,2,3].map(i=>knob(128+i*25,32,8,i*.3)).join('')+T(165,14,'чуть-чуть подкрутить','td','font-size:11px')+T(165,178,'ошибка меньше','td','font-size:11px')+`<rect x="110" y="186" width="110" height="10" rx="5" class="f-line o1"/><rect x="110" y="186" width="70" height="10" rx="5" class="f-yel"/>`,'data-tag="tune"')+
+ W(`<path d="M0 54C80 54 110 184 186 184S300 96 362 70L362 222H0Z" class="f-mint o"/>`+[[60,70,40],[150,110,46],[260,80,42],[330,130,38]].map(c=>`<circle cx="${c[0]}" cy="${c[1]}" r="${c[2]}" class="fog"/>`).join('')+
+  `<circle r="9" class="f-coral o"><animateMotion dur="3.4s" repeatCount="indefinite" path="M30 46C90 56 112 170 186 176"/></circle>`+T(90,22,'высота = ошибка','td','font-size:12px')+T(190,206,'минимум ошибки','td tk','font-size:11px'),'data-tag="hill"')+
+ W(`<path d="M40 30V180H344" class="o nf"/><path d="M44 42C90 122 150 160 340 170" class="nf draw" style="stroke:var(--red);stroke-width:3"/>`+T(46,24,'ошибка','tl td','font-size:11px')+T(340,198,'примеры → миллионы','te','font-size:10px')+T(250,70,'× 1 000 000','td','font-size:16px'),'data-tag="many"'),
+frames:[
+ {show:['lesson','err'],t:`Как сеть учится? Как ученик с учителем. Показываем картинку — сеть отвечает «кот». Учитель: «Нет, это собака». ${B('Ошибка большая')}.`},
+ {show:['lesson','tune'],t:`Тогда каждый вес ${B('подкручивают совсем чуть-чуть')} — в ту сторону, где ошибка станет меньше. Куда крутить каждую ручку, подсказывает алгоритм обратного распространения ошибки.`},
+ {show:['hill'],t:`Представь: ты в тумане на склоне горы и хочешь спуститься. Дороги не видно — щупаешь ногой, где ниже, и делаешь шаг. Это ${B('градиентный спуск')}.`},
+ {show:['many'],t:`Повторяем ${B('миллионы раз')} на миллионах примеров. Ошибка постепенно падает — сеть «научилась». Правил никто не писал: они сами проросли в весах.`}
+],
+remember:['Обучение: угадать → сравнить → подкрутить веса → повторить','Градиентный спуск — шаги вниз по «горе ошибки»','Правила никто не пишет вручную','Учить дорого, пользоваться готовой — дёшево'],
+deep:`<ul>
+<li><b>Обратное распространение ошибки</b> (backpropagation) — способ быстро посчитать для каждого из миллиардов весов, как его изменение повлияет на ошибку.</li>
+<li><b>Шаг обучения.</b> Слишком большой — сеть перепрыгивает ямку и скачет по склонам. Слишком маленький — учится вечность. Подбор шага — отдельное искусство.</li>
+<li><b>Обучение «с учителем»</b> требует правильных ответов — разметки. Для медицинских сетей её делают врачи. Ошибки и разногласия в разметке сеть выучит вместе со всем остальным.</li>
+<li><b>Цена.</b> Крупные модели учат неделями и месяцами на тысячах видеокарт. А вот использовать готовую модель (это называют инференсом) в тысячи раз дешевле — поэтому небольшие модели работают даже дома.</li></ul>`,
+quiz:[
+ {q:'Что делают с весами после ошибки?',a:['Чуть-чуть подкручивают в сторону меньшей ошибки','Стирают и начинают заново','Ничего'],c:0,w:'Маленькие поправки, повторённые миллионы раз, и есть обучение.'},
+ {q:'Что будет, если шаг обучения слишком большой?',a:['Сеть перепрыгивает нужные значения и «скачет»','Сеть всегда учится быстрее и лучше'],c:0,w:'Как пытаться спуститься в ямку гигантскими прыжками.'}
+]},
+
+{name:'Данные',title:'Данные: чему научишь, то и получишь',
+scene:()=>{
+ let g='';for(let j=0;j<3;j++)for(let i=0;i<6;i++)g+=((i+j)%2?dog(40+i*48,34+j*46,.45):cat(40+i*48,34+j*46,.45));
+ const sh=(x,t,sc,c)=>`<rect x="${x}" y="40" width="100" height="116" rx="4" class="f-hat o"/>`+T(x+50,58,t,'tk','font-size:10px')+`<path d="M${x+12} 72h76M${x+12} 84h76M${x+12} 96h60M${x+12} 108h76" class="o1"/>`+T(x+50,142,sc,'td '+c,'font-size:20px');
+ return W(g+T(180,196,'учебники сети — данные','td','font-size:12px'),'data-tag="books"')+
+ W(nrn(70,110,26,'')+T(70,160,'зубрила','td','font-size:12px')+sh(134,'старые вопросы','100%','tok')+sh(246,'новые вопросы','40%','tr'),'data-tag="cram"')+
+ W(cat(14,60,.7)+cat(68,60,.7)+cat(122,60,.7)+T(96,128,'все коты в учебнике рыжие','','font-size:10px')+`<path d="M180 85H220" class="wire flow"/>`+cat(226,60,.8,'f-chip','f-yel')+bub(282,20,72,30,'не кот?','tr',11),'data-tag="bias"')+
+ W(`<rect x="20" y="80" width="256" height="34" class="f-mint o"/><rect x="276" y="80" width="64" height="34" class="f-coral o"/>`+T(148,102,'80 % — учёба','td tk','font-size:12px')+T(308,102,'20 %','td tk','font-size:12px')+T(308,140,'экзамен:','td','font-size:11px')+T(308,156,'этих примеров','','font-size:10px')+T(308,170,'сеть не видела','','font-size:10px'),'data-tag="split"');
+},
+frames:[
+ {show:['books'],t:`Сеть знает только то, что было в её учебниках — ${B('данных')}. Тысячи и миллионы примеров с правильными ответами.`},
+ {show:['cram'],t:`Если примеров мало, а сеть большая, она ${B('зубрит')}: запоминает ответы, а не суть. На знакомых вопросах — 100 %, на новых — провал. Это переобучение.`},
+ {show:['bias'],t:`Если в учебниках все коты рыжие, чёрного кота сеть может не узнать. ${B('Перекос в данных — перекос в ответах')}.`},
+ {show:['split'],t:`Поэтому сеть честно проверяют на примерах, ${B('которых она никогда не видела')}. Только этот результат что-то значит.`}
+],
+remember:['Сеть знает только свои данные','Переобучение — зубрёжка вместо понимания','Перекос в данных даёт перекос в ответах','Честная проверка — на невиданных примерах'],
+deep:`<ul>
+<li><b>Мусор на входе — мусор на выходе.</b> Качество и разнообразие данных важнее хитрой архитектуры.</li>
+<li><b>Три набора данных:</b> обучающий (по нему учат), валидационный (по нему настраивают) и тестовый (его не трогают до финальной проверки).</li>
+<li><b>Для медицины особенно важно:</b> модель, обученная на снимках одного аппарата и одной популяции, может хуже работать на другом аппарате и в другой больнице. Нужна внешняя проверка — на данных других центров.</li>
+<li><b>«Точность 99 %»</b> без ответа на вопрос «на каких данных проверяли?» почти ничего не значит. Ещё важно, сколько в этих данных было редких случаев: если болезнь встречается у 1 %, сеть с ответом «всегда здоров» уже точна на 99 %.</li></ul>`,
+quiz:[
+ {q:'Сеть показала 100 % на учебных примерах и 55 % на новых. Что случилось?',a:['Переобучение — зазубрила','Это идеальная сеть'],c:0,w:'Хорошая сеть работает почти одинаково на старых и новых примерах.'},
+ {q:'Болезнь встречается у 1 % людей. Сеть всегда отвечает «здоров». Её точность?',a:['99 % — и она бесполезна','1 %'],c:0,w:'Поэтому для медицины смотрят чувствительность и специфичность, а не только «точность».'}
+]},
+
+{name:'Языковые модели',title:'Языковая модель: угадай следующее слово',
+scene:()=>{
+ const t1=blocks(['Ма','ма',' мы','ла',' ра','му'],70,90,30,14);
+ const t2=blocks(['Кошка','сидит','на'],20,34,26,12);
+ const rows=[['окне',41],['диване',28],['крыше',12],['луне',1]];
+ const bars=rows.map((r,i)=>T(20,96+i*24,r[0],'tl','font-size:11px')+`<rect x="80" y="${86+i*24}" width="${r[1]*5}" height="14" rx="3" class="${i?'f-blue2':'f-grn'} o1 grow" style="animation-delay:${i*.15}s"/>`+T(86+r[1]*5,97+i*24,r[1]+'%','tl tm','font-size:9px')).join('');
+ const last=t2.pos[2];
+ let bk='';for(let i=0;i<5;i++)bk+=`<rect x="${30+i*8}" y="${150-i*22}" width="96" height="20" rx="3" class="${['f-coral','f-blue','f-mint','f-yel','f-wood'][i]} o1"/>`;
+ return W(T(180,60,'«Мама мыла раму»','td','font-size:14px')+t1.s+T(180,150,'примерно так: 6 токенов','','font-size:11px'),'data-tag="tok"')+
+ W(t2.s,'data-tag="sent"')+W(`<rect x="${(last[0]+last[1]+6).toFixed(1)}" y="34" width="40" height="26" rx="5" class="nf o1" style="stroke-dasharray:4 3"/>`+T(last[0]+last[1]+26,52,'?','td','font-size:14px'),'data-tag="next"')+
+ W(bars,'data-tag="bars"')+
+ W(`<g class="mv" style="--dx:${(last[0]+last[1]+8-80).toFixed(0)}px;--dy:-52px;--t:2.4s"><rect x="80" y="86" width="44" height="26" rx="5" class="f-grn o1"/>${T(102,103,'окне','tw','font-size:12px')}</g>`,'data-tag="pick"')+
+ W(bk+T(78,190,'триллионы токенов','td','font-size:11px')+`<path d="M140 100H170" class="wire flow"/>`+`<rect x="176" y="40" width="160" height="120" rx="12" class="f-card o"/>`+net([{x:200,n:4},{x:256,n:5},{x:312,n:4}],58,142,6)+T(256,190,'миллиарды весов','td','font-size:11px'),'data-tag="scale"');
+},
+frames:[
+ {show:['tok'],t:`Языковая модель — та, что внутри ChatGPT или Claude — читает текст не буквами и не словами, а кусочками. Они называются ${B('токены')}.`},
+ {show:['sent','next','bars'],t:`Её главная работа удивительно проста: ${B('угадать следующий кусочек')}. Для каждого варианта она выдаёт вероятность.`},
+ {show:['sent','bars','pick'],t:`Выбирает вариант, дописывает его — и снова угадывает следующий. Так, ${B('кусочек за кусочком')}, рождается весь ответ.`},
+ {show:['scale'],t:`Чтобы угадывать хорошо, модель учили на ${B('гигантском количестве текстов')}. Попутно она выучила грамматику, факты, стиль и даже приёмы рассуждения.`}
+],
+remember:['Текст режется на токены — кусочки слов','Модель угадывает следующий токен','Ответ рождается по одному токену','Знания — из обучающих текстов, до даты среза'],
+deep:`<ul>
+<li><b>Русский дороже английского.</b> Русский текст обычно режется на больше токенов, чем английский того же смысла. Поэтому длинные русские тексты быстрее заполняют память модели.</li>
+<li><b>Температура</b> — насколько смело модель выбирает не самый вероятный вариант. Низкая — предсказуемо и однообразно, высокая — живее, но больше ошибок.</li>
+<li><b>Дата среза.</b> Модель не знает событий после своего обучения, если ей не дали поиск в интернете.</li>
+<li><b>Из «угадайки» в помощника.</b> После основного обучения модель дообучают отвечать как ассистент — на примерах хороших ответов и оценках людей.</li>
+<li><b>Спор о понимании.</b> «Просто угадывает слово» — правда о механизме, но не обо всём результате. Чтобы хорошо угадывать продолжение сложного текста, модели приходится выучить много закономерностей мира. Понимает ли она в человеческом смысле — открытый научный вопрос.</li></ul>`,
+quiz:[
+ {q:'Что языковая модель делает на каждом шаге?',a:['Угадывает следующий токен','Ищет ответ в базе данных','Копирует готовый текст из интернета'],c:0,w:'Весь ответ — цепочка таких угадываний.'},
+ {q:'Токен — это…',a:['кусочек текста: слово или часть слова','всегда одна буква','целое предложение'],c:0,w:'Частые слова — один токен, редкие режутся на части.'}
+]},
+
+{name:'Внимание',title:'Внимание: кто такая «она»?',
+scene:()=>{
+ const a=blocks(['Мама','не','взяла','книгу:','она','устала.'],22,130,26,12);
+ const b=blocks(['Мама','не','взяла','книгу:','она','тяжёлая.'],22,130,26,12);
+ let sh='';for(let i=0;i<7;i++)sh+=sheet(78+i*30,114);
+ let sh2='';for(let i=0;i<7;i++)sh2+=sheet(78+i*30,114,i<2?`class="drop" style="animation-delay:${i*.5}s"`:'');
+ return W(a.s+arcTo(a.pos[4],a.pos[0],128,46,6,'70%')+arcTo(a.pos[4],a.pos[3],128,22,2,'15%'),'data-tag="attn"')+
+ W(b.s+arcTo(b.pos[4],b.pos[3],128,22,6,'75%')+arcTo(b.pos[4],b.pos[0],128,46,2,'10%'),'data-tag="attn2"')+
+ W(desk(60,146,240,'','контекстное окно')+sh+T(180,40,'всё, что модель видит сейчас,','td','font-size:12px')+T(180,58,'лежит на её столе','td','font-size:12px'),'data-tag="ctx"')+
+ W(desk(60,146,240,'','контекстное окно')+sh2+sheet(320,40,'class="mv" style="--dx:-30px;--dy:74px;--t:2s"')+T(150,40,'новое пришло —','td','font-size:12px')+T(150,58,'старое упало со стола','td','font-size:12px'),'data-tag="ctxfull"');
+},
+frames:[
+ {show:['attn'],t:`Чтобы понять, кто такая «она», модель смотрит на остальные слова и решает, какие важны. Это ${B('механизм внимания')} — сердце современных моделей.`},
+ {show:['attn2'],t:`Поменяли конец фразы — и «она» уже указывает на книгу. ${B('Внимание пересчитывается')} для каждого слова и каждого нового текста.`},
+ {show:['ctx'],t:`Всё, что модель видит в разговоре, лежит на её «столе» — это ${B('контекстное окно')}. Помнишь оперативку из «Кухни»? Похоже: стол большой, но не бесконечный.`},
+ {show:['ctxfull'],t:`Если разговор очень длинный, старые листки не помещаются — модель их ${B('уже не видит')}. Поэтому в бесконечной переписке она может «забыть» начало.`}
+],
+remember:['Внимание — каждое слово смотрит на другие','Связи пересчитываются под каждый текст','Контекстное окно — ограниченный «стол» модели','Не влезло в окно — модель этого не видит'],
+deep:`<ul>
+<li><b>Трансформер</b> — архитектура, построенная на внимании (статья «Attention Is All You Need», 2017). На ней работают почти все современные языковые модели.</li>
+<li><b>Размер окна</b> измеряют в токенах: у современных моделей — от десятков тысяч до миллиона и больше. Но «влезло» не значит «внимательно прочитано»: в очень длинных текстах детали из середины модели иногда упускают.</li>
+<li><b>Цена длинного текста.</b> Объём вычислений внимания растёт быстрее, чем длина текста. Поэтому длинный контекст дороже и медленнее.</li>
+<li><b>Память между чатами</b> — отдельная функция сервиса: он подкладывает на стол заметки из прошлых разговоров. Сама модель между разговорами ничего не помнит.</li></ul>`,
+quiz:[
+ {q:'Что такое контекстное окно?',a:['Всё, что модель видит в текущем разговоре — ограниченный «стол»','Окно браузера','Список сайтов модели'],c:0,w:'Его размер измеряют в токенах.'},
+ {q:'Почему в очень длинном чате модель может «забыть» начало?',a:['Начало не помещается в контекстное окно','Она устала'],c:0,w:'Что выпало со стола, то для модели не существует.'}
+]},
+
+{name:'Почему ИИ ошибается',title:'Галлюцинации: уверенно и неправда',
+scene:()=>W(bub(14,14,230,34,'Дай статью про редкую болезнь X','',11)+nrn(64,146,26,'')+`<rect x="112" y="80" width="236" height="84" rx="10" class="f-card o"/><path d="M114 130l-14 10 16-2z" class="f-card o"/>`+
+  T(124,102,'Конечно! Петров А. и др., 2019,','tl','font-size:11px')+T(124,120,'«Вестник редких болезней», 12(3).','tl','font-size:11px')+`<text x="124" y="148" class="t tl tr appear" style="font-size:11px;animation-delay:1.6s">Такой статьи не существует</text>`,'data-tag="q"')+
+ W(nrn(56,110,24,'')+T(118,72,'звучит правдоподобно','tl','font-size:11px')+`<rect x="118" y="80" width="220" height="16" rx="4" class="f-grn o1 grow"/>`+T(118,130,'проверено по фактам','tl','font-size:11px')+`<rect x="118" y="138" width="220" height="16" rx="4" class="f-line o1"/>`+T(228,150,'внутри нет такой проверки','tr','font-size:10px'),'data-tag="why"')+
+ W(gauge(96,120,80,'уверенность тона')+gauge(264,120,-70,'точность ответа')+T(180,30,'тон ничего не доказывает','td','font-size:13px'),'data-tag="conf"')+
+ W(T(180,28,'Как проверять','td','font-size:14px')+checklist(['Просить источники','Открывать и читать первоисточник','Сверять с клиническими рекомендациями','Расчёты проверять отдельно'],40,64,32),'data-tag="check"'),
+frames:[
+ {show:['q'],t:`Модель угадывает правдоподобное продолжение. Если правильного ответа она не знает, то часто всё равно выдаёт гладкий уверенный текст. Это называют ${B('галлюцинацией')}.`},
+ {show:['why'],t:`Внутри нет отдельной проверки «а это правда?». Есть только «так обычно пишут». Поэтому ${B('красивая ссылка на статью может быть полностью выдуманной')}.`},
+ {show:['conf'],t:`${B('Уверенный тон ничего не доказывает')}. Модель одинаково спокойно рассказывает и правду, и выдумку.`},
+ {show:['check'],t:`Что делать: просить источники и открывать их, сверять важное с первоисточниками, давать модели документы и поиск. ${B('Особенно в медицине')}.`}
+],
+remember:['Модель выдаёт правдоподобное, а не проверенное','Ссылки и цифры бывают выдуманными','Уверенный тон ≠ правда','Важное — сверять с первоисточником'],
+deep:`<ul>
+<li><b>Где ошибок больше:</b> редкие темы, точные цифры и даты, цитаты, ссылки на статьи, длинные расчёты «в уме», события после даты среза.</li>
+<li><b>Как снизить риск:</b> дать модели документы или поиск и просить отвечать только по ним. Так устроены справочные боты по документам (подход RAG: сначала найти нужные фрагменты, потом отвечать по ним).</li>
+<li><b>Поддакивание.</b> Модели склонны соглашаться с собеседником. Если в вопросе уже есть ошибка, модель может её подхватить. Полезно прямо просить возражения и слабые места.</li>
+<li><b>Модели становятся точнее</b>, но ноль ошибок не обещает никто. Правило простое: модель — быстрый черновик и помощник, ответственность за решение — на человеке.</li></ul>`,
+quiz:[
+ {q:'Модель дала ссылку на статью с авторами и годом. Что верно?',a:['Ссылку надо открыть и проверить — она может быть выдуманной','Раз есть авторы и год, статья существует'],c:0,w:'Правдоподобный формат ссылки модель воспроизводит легко, а существование статьи — не проверяет.'},
+ {q:'Модель отвечает очень уверенно. Это значит…',a:['ничего: тон не связан с точностью','что ответ точно верный'],c:0,w:'Уверенный стиль — следствие обучения, а не проверки фактов.'},
+ {q:'Как снизить риск выдумок?',a:['Дать модели документы или поиск и проверять первоисточники','Задать вопрос капслоком'],c:0,w:'Ответ по найденным документам проверить намного проще.'}
+]},
+
+{name:'Железо для ИИ',title:'Железо для нейросетей',
+scene:()=>{
+ let farm='';for(let j=0;j<5;j++)for(let i=0;i<8;i++)farm+=`<rect x="${14+i*20}" y="${50+j*22}" width="16" height="16" rx="2" class="f-blue o1"/>`;
+ const bar=(y,l,w,v)=>T(20,y+12,l,'tl','font-size:11px')+`<rect x="96" y="${y}" width="${w}" height="16" rx="3" class="f-blue o1 grow"/>`+T(102+w,y+12,v,'tl tm','font-size:10px');
+ return W(gpu(18,120,1.2,'','Художник')+matrix(146,40,['2','7','1','0','3','5','4','1','6'])+T(220,74,'×','td','font-size:18px')+matrix(232,40,['1','0','2','3','1','1','0','2','4'])+T(218,158,'=','td','font-size:18px')+matrix(232,118,['9','8','…','…','…','…','…','…','…'],true)+T(190,200,'нейросеть — это умножение таблиц чисел','','font-size:10px'),'data-tag="gpu"')+
+ W(T(100,52,'8 000 000 000 весов','tm','font-size:12px')+T(100,76,'× 2 байта','tm','font-size:12px')+T(100,104,'= 16 ГБ','td','font-size:18px')+desk(190,146,150,'','VRAM 16 ГБ')+[0,1,2,3,4,5].map(i=>crateIn(198+i*22,132,'f-coral')).join('')+[0,1,2,3,4].map(i=>crateIn(209+i*22,118,'f-mint')).join(''),'data-tag="size"')+
+ W(T(180,36,'Квантизация: грубее числа — меньше вес','td','font-size:12px')+bar(64,'16 бит',224,'16 ГБ')+bar(96,'8 бит',112,'8 ГБ')+bar(128,'4 бита',64,'~5 ГБ')+T(180,186,'качество при 4–8 битах почти то же','','font-size:11px'),'data-tag="quant"')+
+ W(farm+T(94,30,'обучение','td','font-size:12px')+T(94,176,'тысячи видеокарт, месяцы','','font-size:10px')+`<path d="M180 30V190" class="o1" style="stroke-dasharray:4 4"/>`+T(268,30,'запуск','td','font-size:12px')+gpu(232,104,1,'')+T(268,186,'одна видеокарта','','font-size:10px'),'data-tag="train"');
+},
+frames:[
+ {show:['gpu'],t:`Помнишь Художника-видеокарту с тысячами помощников? Нейросеть — это в основном ${B('умножение огромных таблиц чисел')}. Работа как раз для тысяч простых ядер.`},
+ {show:['size'],t:`Все веса модели должны лежать на столе художника — ${B('в видеопамяти')}. Модель на 8 миллиардов весов в обычной точности занимает около 16 ГБ.`},
+ {show:['quant'],t:`${B('Квантизация')} — хранить каждый вес грубее: 4 бита вместо 16. Модель худеет в 3–4 раза и влезает в обычную видеокарту, почти не теряя качества.`},
+ {show:['train'],t:`${B('Учить')} большую модель — тысячи видеокарт месяцами. ${B('Запускать')} готовую — хватит одной, если ей хватает видеопамяти.`}
+],
+remember:['Нейросеть — умножение таблиц, работа для GPU','Главное для запуска — объём VRAM','Память ≈ число весов × байты на вес','Квантизация уменьшает модель в 2–4 раза'],
+deep:`<p><b>Сколько видеопамяти нужно модели</b> (без запаса на контекст, добавь 10–20 %):</p>
+<div class="tbl"><table><thead><tr><th>Модель</th><th>16 бит</th><th>8 бит</th><th>4 бита</th></tr></thead><tbody>
+<tr><td>8 млрд весов</td><td>16 ГБ</td><td>8 ГБ</td><td>~5 ГБ</td></tr>
+<tr><td>14 млрд</td><td>28 ГБ</td><td>14 ГБ</td><td>~9 ГБ</td></tr>
+<tr><td>32 млрд</td><td>64 ГБ</td><td>32 ГБ</td><td>~19 ГБ</td></tr>
+<tr><td>70 млрд</td><td>140 ГБ</td><td>70 ГБ</td><td>~40 ГБ</td></tr></tbody></table></div>
+<ul>
+<li><b>Не влезла в VRAM</b> — часть модели уходит в обычную оперативку. Работает, но в разы медленнее: художник снова бегает в кладовку.</li>
+<li><b>NVIDIA</b> (технология CUDA) лучше всего поддерживается программами для нейросетей. Компьютеры Apple с общей памятью — тоже рабочий вариант для запуска.</li>
+<li><b>Честное сравнение:</b> локальная модель на домашней видеокарте обычно заметно слабее крупных облачных моделей. Зато данные никуда не уходят.</li></ul>`,
+quiz:[
+ {q:'Сколько примерно VRAM нужно модели на 8 млрд весов в 4-битной квантизации?',a:['~5 ГБ','~64 ГБ','~500 МБ'],c:0,w:'8 млрд × 0,5 байта ≈ 4 ГБ плюс служебные данные.'},
+ {q:'Что будет, если модель не влезает в видеопамять?',a:['Часть уйдёт в оперативку — заработает, но медленнее','Видеокарта сгорит'],c:0,w:'Это та же подкачка, что в серии про оперативку.'}
+]},
+
+{name:'Пользоваться с умом',title:'Как пользоваться нейросетью с умом',
+scene:()=>{
+ const row=(y,k,v)=>T(30,y,k,'tl td','font-size:10px')+T(94,y,v,'tl','font-size:10px');
+ return W(`<rect x="30" y="40" width="150" height="56" rx="6" class="f-hat o"/><path d="M180 70l26 30" class="o1 nf"/>`+T(105,74,'«Сделай вкусно»','td tk','font-size:13px')+chef(220,118)+`<text x="246" y="84" class="t td tr rise" style="font-size:18px">?</text>`,'data-tag="bad"')+
+ W(`<rect x="18" y="20" width="246" height="156" rx="8" class="f-hat o"/>`+T(30,40,'Заказ','tl td tk','font-size:12px')+row(64,'Роль','ты — опытный редактор')+row(88,'Задача','памятка пациенту')+row(112,'Контекст','перед УЗИ брюшной полости')+row(136,'Формат','5 пунктов, простыми словами')+row(160,'Пример','«Не ешьте за 6–8 часов»')+chef(292,118)+`<ellipse cx="317" cy="104" rx="22" ry="5" class="f-hat o"/>`,'data-tag="good"')+
+ W(`<rect x="40" y="30" width="170" height="150" rx="6" class="f-hat o"/><path d="M56 58h138M56 76h138M56 94h110M56 112h138M56 130h96" class="o1"/><g transform="rotate(-12 125 150)"><rect x="66" y="136" width="118" height="28" rx="4" class="nf" style="stroke:var(--red);stroke-width:3"/>${T(125,155,'ЧЕРНОВИК','td tr','font-size:14px')}</g>`+T(286,60,'Проверь:','td','font-size:12px')+checklist(['цифры','ссылки','дозировки','нормы'],240,88,26),'data-tag="check"')+
+ W(`<rect x="30" y="34" width="180" height="140" rx="8" class="f-hat o"/>`+T(46,58,'Пациент:','tl tk','font-size:11px')+`<rect x="106" y="47" width="90" height="14" rx="3" class="f-gray"/>`+T(46,82,'Дата рождения:','tl tk','font-size:11px')+`<rect x="150" y="71" width="46" height="14" rx="3" class="f-gray"/><path d="M46 104h150M46 120h150M46 136h110" class="o1"/><rect x="250" y="84" width="60" height="50" rx="8" class="f-yel o"/><path d="M262 84v-12a18 18 0 0 1 36 0v12" class="o nf"/><circle cx="280" cy="106" r="5" class="f-eye"/><path d="M280 110v10" class="o"/>`+T(280,160,'обезличь','td','font-size:12px')+T(280,176,'перед вставкой','td','font-size:12px'),'data-tag="priv"');
+},
+frames:[
+ {show:['bad'],t:`Запрос к модели — как ${B('заказ повару')}. «Сделай что-нибудь вкусное» — и получишь что попало.`},
+ {show:['good'],t:`Хороший заказ: ${B('роль, задача, контекст, формат и пример')}. Чем точнее заказ, тем точнее блюдо.`},
+ {show:['check'],t:`Ответ — это ${B('черновик, а не истина')}. Важное проверяй сам: цифры, ссылки, дозировки, нормы.`},
+ {show:['priv'],t:`И осторожно с личными данными: ${B('не вставляй в публичные сервисы ФИО, даты рождения и снимки пациентов')} без обезличивания.`}
+],
+remember:['Запрос = заказ: роль, задача, контекст, формат, пример','Ответ — черновик, а не истина','Цифры, ссылки и дозировки — проверять','Данные пациентов — только обезличенно'],
+deep:`<ul>
+<li><b>Попроси вопросы.</b> Фраза «Сначала задай мне уточняющие вопросы» часто улучшает результат сильнее, чем длинный запрос.</li>
+<li><b>Попроси спорить.</b> «Найди слабые места», «приведи контраргументы» — защита от поддакивания.</li>
+<li><b>Большое — по шагам.</b> Сначала план, потом каждый раздел. Так проще заметить ошибку на раннем этапе.</li>
+<li><b>Покажи пример</b> хорошего результата — модель хорошо подражает образцу.</li>
+<li><b>Правила данных.</b> Сервисы по-разному хранят и используют переписку. Рабочие медицинские данные — только в инструментах, разрешённых в твоей организации, и только обезличенные.</li></ul>`,
+quiz:[
+ {q:'Какой запрос лучше?',a:['«Напиши памятку для пациентов перед УЗИ брюшной полости: 5 пунктов, простыми словами»','«Напиши что-нибудь про УЗИ»'],c:0,w:'В первом есть задача, аудитория и формат.'},
+ {q:'Можно ли вставить в публичный чат-бот заключение с ФИО пациента?',a:['Нет — только обезличенно и если правила организации разрешают','Да, это всегда безопасно'],c:0,w:'Личные медицинские данные требуют особой защиты.'}
+]}
+];
+
+/* ---------- state ---------- */
+const KEY='ai-cartoon-v1';
+let store={ans:{}};
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&s.ans)store=s}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}};
+let ep=0,fr=0,auto=false,autoT=null,seen=new Set();
+
+/* ---------- voice ---------- */
+const synth=('speechSynthesis' in window)?window.speechSynthesis:null;
+let voiceOn=false,ruVoice=null,speakId=0;
+const SAY=[[/ChatGPT/g,'чат джи-пи-ти'],[/Claude/g,'клод'],[/ReLU/g,'релу'],[/RAG/g,'рэг'],[/CUDA/g,'куда'],[/NVIDIA/g,'энвидиа'],[/Apple/g,'эппл'],[/УЗИ/g,'у-зэ-и'],[/ИИ/g,'и-и'],[/ФИО/g,'фамилии'],[/млрд/g,'миллиардов'],[/VRAM/g,'ви-рам'],[/CPU/g,'си-пи-ю'],[/RAM/g,'рам'],[/GPU/g,'джи-пи-ю'],[/NVMe/g,'эн-ви-эм-и'],[/SSD/g,'эс-эс-ди'],[/HDD/g,'эйч-ди-ди'],
+ [/(\d+)GB/g,'$1 гигабайт'],[/DDR(\d)-(\d+)/g,'ди-ди-эр $1, $2'],[/DDR(\d)/g,'ди-ди-эр $1'],[/CL(\d+)/g,'си-эль $1'],[/ГГц/g,'гигагерц'],[/ГБ/g,'гигабайт'],
+ [/МТ\/с/g,'мегатрансферов в секунду'],[/UEFI/g,'уефи'],[/BIOS/g,'биос'],[/POST/g,'пост'],[/XMP/g,'икс-эм-пи'],[/EXPO/g,'экспо'],[/M\.2/g,'эм-два'],
+ [/AM5/g,'эй-эм пять'],[/LGA/g,'эл-джи-эй '],[/Full HD/g,'фул эйч-ди'],[/Ctrl/g,'контрол'],[/Shift/g,'шифт'],[/Esc/g,'эскейп'],[/×/g,' на '],
+ [/Windows/g,'виндоус'],[/USB/g,'ю-эс-би'],[/L1/g,'эль один'],[/L2/g,'эль два'],[/L3/g,'эль три'],[/(\d) В(?=[\s,.)—]|$)/g,'$1 вольт'],[/\(Вт\)/g,''],[/\+/g,' '],[/ЦП/g,'цэ-пэ'],[/\//g,' или ']];
+function pickVoice(){if(!synth)return;const v=synth.getVoices().filter(x=>/^ru/i.test(x.lang));ruVoice=v.find(x=>/natural|online|google|milena|svetlana|dariya/i.test(x.name))||v[0]||null}
+if(synth){pickVoice();synth.onvoiceschanged=pickVoice}
+function speak(html,done){
+  if(!synth){done&&done();return}
+  synth.cancel();const id=++speakId;
+  const d=document.createElement('div');d.innerHTML=html;let t=d.textContent;
+  SAY.forEach(([r,s])=>{t=t.replace(r,s)});t=t.replace(/[А-ЯЁ]{3,}/g,w=>w.toLowerCase());
+  const parts=(t.match(/[^.!?…]+[.!?…]*/g)||[t]).map(s=>s.trim()).filter(Boolean);let i=0;
+  const next=()=>{if(id!==speakId)return;if(i>=parts.length){done&&done();return}
+    const u=new SpeechSynthesisUtterance(parts[i++]);u.lang='ru-RU';if(ruVoice)u.voice=ruVoice;u.rate=1;u.onend=next;u.onerror=next;synth.speak(u)};
+  next();
+}
+function hush(){speakId++;if(synth)synth.cancel()}
+function advanceAuto(){if(!auto)return;if(fr<EP[ep].frames.length-1){fr++;applyFrame()}else stopAuto()}
+const $=id=>document.getElementById(id);
+
+const isDone=i=>EP[i].quiz.every((q,j)=>store.ans[`${i}-${j}`]!==undefined);
+function renderNav(){
+  $('eps').innerHTML=EP.map((e,i)=>`<button type="button" class="chip${i===ep?' cur':''}${isDone(i)?' done':''}" data-i="${i}" aria-current="${i===ep}"><span class="n"><span>${i+1}</span></span>${e.name}</button>`).join('');
+  const d=EP.filter((_,i)=>isDone(i)).length;
+  $('prog').textContent=`Пройдено ${d} из ${EP.length}`;
+  $('progbar').style.width=(d/EP.length*100)+'%';
+}
+function renderQuiz(){
+  const e=EP[ep];let right=0,answered=0;
+  $('quiz').innerHTML=e.quiz.map((q,j)=>{
+    const a=store.ans[`${ep}-${j}`];const has=a!==undefined;if(has){answered++;if(a===q.c)right++}
+    return `<div class="q"><p>${q.q}</p>${q.a.map((o,k)=>`<button type="button" class="opt${has&&k===q.c?' right':''}${has&&k===a&&a!==q.c?' wrong':''}" data-q="${j}" data-k="${k}" ${has?'disabled':''}>${o}</button>`).join('')}
+    ${has?`<p class="why${a===q.c?'':' no'}"><b>${a===q.c?'Верно.':'Не совсем.'}</b> ${q.w}</p>`:''}</div>`}).join('')+
+    `<div class="qfoot"><span>${answered?`Верно ${right} из ${e.quiz.length}`:`${e.quiz.length} вопроса`}</span>${answered?'<button type="button" class="link" id="reset">Ответить заново</button>':''}</div>`;
+}
+function renderEp(){
+  const e=EP[ep];fr=0;seen=new Set();
+  $('epnum').textContent=`СЕРИЯ ${ep+1} / ${EP.length}`;
+  $('eptitle').textContent=e.title;
+  $('stage').innerHTML=svgWrap(e.scene());
+  $('rem').innerHTML=e.remember.map(r=>`<li>${r}</li>`).join('');
+  $('deep').innerHTML=e.deep;
+  $('dots').innerHTML=e.frames.map(()=>'<i></i>').join('');
+  const nx=EP[ep+1];
+  $('nextep').hidden=!nx; if(nx)$('nextep').textContent=`Следующая серия: ${nx.name} →`;
+  renderNav();renderQuiz();applyFrame();
+}
+function applyFrame(){
+  const e=EP[ep],f=e.frames[fr],svg=$('stage').querySelector('svg');
+  seen.add(fr);
+  svg.setAttribute('class',(f.cls||'')+((f.focus&&f.focus.length)?' dim':''));
+  svg.querySelectorAll('.actor').forEach(a=>a.classList.toggle('on',!!(f.focus&&f.focus.includes(a.id))));
+  const show=f.show||[];
+  svg.querySelectorAll('[data-tag]').forEach(el=>{
+    const vis=el.getAttribute('data-tag').split(' ').some(t=>show.includes(t));
+    if(vis)el.removeAttribute('hidden');else el.setAttribute('hidden','');
+  });
+  $('subtext').innerHTML=f.t;
+  [...$('dots').children].forEach((d,i)=>{d.className=i===fr?'cur':(seen.has(i)?'seen':'')});
+  $('prev').disabled=fr===0;
+  $('next').textContent=fr<e.frames.length-1?'Дальше':'К вопросам';
+  clearTimeout(autoT);
+  if(voiceOn)speak(f.t,()=>{if(auto)autoT=setTimeout(advanceAuto,900)});
+  else if(auto)autoT=setTimeout(advanceAuto,6500);
+}
+function go(d){
+  const n=EP[ep].frames.length;
+  if(d>0&&fr===n-1){stopAuto();document.querySelector('.quiz').scrollIntoView({behavior:'smooth',block:'start'});return}
+  fr=Math.max(0,Math.min(n-1,fr+d));applyFrame();
+}
+function stopAuto(){auto=false;clearTimeout(autoT);hush();$('play').classList.remove('on');$('play').textContent='Авто'}
+function setEp(i,push=true){stopAuto();ep=i;renderEp();if(push){try{history.replaceState(null,'','#ep-'+(i+1))}catch(e){location.hash='ep-'+(i+1)}}}
+
+$('prev').onclick=()=>{stopAuto();go(-1)};
+$('next').onclick=()=>{stopAuto();go(1)};
+$('play').onclick=()=>{
+  if(auto){stopAuto();return}
+  auto=true;$('play').classList.add('on');$('play').textContent='Пауза';
+  if(fr===EP[ep].frames.length-1)fr=0;
+  applyFrame();
+};
+if(!synth)$('voice').hidden=true;
+$('voice').onclick=()=>{
+  voiceOn=!voiceOn;const b=$('voice');
+  b.classList.toggle('on',voiceOn);b.setAttribute('aria-pressed',String(voiceOn));b.textContent=voiceOn?'Голос вкл':'Голос';
+  if(voiceOn){pickVoice();applyFrame()}else{hush();if(auto){clearTimeout(autoT);autoT=setTimeout(advanceAuto,6500)}}
+};
+$('eps').onclick=ev=>{const b=ev.target.closest('.chip');if(b)setEp(+b.dataset.i)};
+$('nextep').onclick=()=>{if(ep<EP.length-1){setEp(ep+1);window.scrollTo({top:0,behavior:'smooth'})}};
+$('quiz').onclick=ev=>{
+  const o=ev.target.closest('.opt');
+  if(o){store.ans[`${ep}-${o.dataset.q}`]=+o.dataset.k;save();renderQuiz();renderNav();return}
+  if(ev.target.id==='reset'){EP[ep].quiz.forEach((_,j)=>delete store.ans[`${ep}-${j}`]);save();renderQuiz();renderNav()}
+};
+document.addEventListener('keydown',ev=>{
+  if(ev.target.closest&&ev.target.closest('button')&&(ev.key===' '||ev.key==='Enter'))return;
+  if(ev.key==='ArrowRight'){stopAuto();go(1)}else if(ev.key==='ArrowLeft'){stopAuto();go(-1)}
+});
+function fromHash(){const m=/^#ep-(\d+)$/.exec(location.hash);const i=m?Math.min(EP.length,Math.max(1,+m[1]))-1:0;if(i!==ep||!$('stage').firstChild){ep=i;renderEp()}}
+window.addEventListener('hashchange',fromHash);
+ep=-1;fromHash();
+</script>
+
+</body>
+</html>
